@@ -107,7 +107,7 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 
 ## Documentation required for publication
 
-- [ ] Add `docs/architecture.md`
+- [x] Add `docs/architecture.md`
 - [ ] Add `docs/privacy-security.md`, emphasizing local storage, permissions, subprocess trust, backups, and optional future network adapters
 - [ ] Add `CONTRIBUTING.md`
 - [ ] Add `SECURITY.md` with a private vulnerability-reporting path

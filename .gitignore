@@ -1,0 +1,10 @@
+agent-first-crm-plan.md
+
+node_modules/
+dist/
+coverage/
+*.db
+*.db-shm
+*.db-wal
+*.tgz
+.DS_Store

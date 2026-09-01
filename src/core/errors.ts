@@ -1,0 +1,83 @@
+export type ErrorCode =
+  | 'VALIDATION_ERROR'
+  | 'DATABASE_NOT_INITIALIZED'
+  | 'DATABASE_INVALID'
+  | 'DATABASE_VERSION_UNSUPPORTED'
+  | 'OBJECT_NOT_FOUND'
+  | 'OBJECT_ARCHIVED'
+  | 'FIELD_NOT_FOUND'
+  | 'FIELD_ARCHIVED'
+  | 'SCHEMA_CONFLICT'
+  | 'RECORD_NOT_FOUND'
+  | 'RECORD_ARCHIVED'
+  | 'RELATIONSHIP_NOT_FOUND'
+  | 'RELATIONSHIP_ARCHIVED'
+  | 'EVENT_NOT_FOUND'
+  | 'DUPLICATE_RELATIONSHIP'
+  | 'MULTIPLE_UPSERT_MATCHES'
+  | 'AMBIGUOUS_ID'
+  | 'UNKNOWN_FIELD'
+  | 'REQUIRED_FIELD_MISSING'
+  | 'INVALID_FIELD_VALUE'
+  | 'INVALID_OPERATOR'
+  | 'IDEMPOTENCY_CONFLICT'
+  | 'EXPORT_TARGET_EXISTS'
+  | 'IMPORT_INVALID'
+  | 'IMPORT_TARGET_NOT_EMPTY'
+  | 'CSV_IMPORT_INVALID'
+  | 'INTEGRATION_CONFLICT'
+  | 'INTEGRATION_ERROR'
+  | 'DATABASE_ERROR'
+  | 'INTERNAL_ERROR';
+
+const exitCodes: Record<ErrorCode, number> = {
+  VALIDATION_ERROR: 2,
+  DATABASE_NOT_INITIALIZED: 3,
+  DATABASE_INVALID: 6,
+  DATABASE_VERSION_UNSUPPORTED: 7,
+  OBJECT_NOT_FOUND: 3,
+  OBJECT_ARCHIVED: 5,
+  FIELD_NOT_FOUND: 3,
+  FIELD_ARCHIVED: 5,
+  SCHEMA_CONFLICT: 7,
+  RECORD_NOT_FOUND: 3,
+  RECORD_ARCHIVED: 5,
+  RELATIONSHIP_NOT_FOUND: 3,
+  RELATIONSHIP_ARCHIVED: 5,
+  EVENT_NOT_FOUND: 3,
+  DUPLICATE_RELATIONSHIP: 5,
+  MULTIPLE_UPSERT_MATCHES: 5,
+  AMBIGUOUS_ID: 4,
+  UNKNOWN_FIELD: 2,
+  REQUIRED_FIELD_MISSING: 2,
+  INVALID_FIELD_VALUE: 2,
+  INVALID_OPERATOR: 2,
+  IDEMPOTENCY_CONFLICT: 5,
+  EXPORT_TARGET_EXISTS: 5,
+  IMPORT_INVALID: 2,
+  IMPORT_TARGET_NOT_EMPTY: 5,
+  CSV_IMPORT_INVALID: 2,
+  INTEGRATION_CONFLICT: 5,
+  INTEGRATION_ERROR: 6,
+  DATABASE_ERROR: 6,
+  INTERNAL_ERROR: 10,
+};
+
+export class AppError extends Error {
+  readonly code: ErrorCode;
+  readonly details: Record<string, unknown>;
+  readonly exitCode: number;
+
+  constructor(code: ErrorCode, message: string, details: Record<string, unknown> = {}) {
+    super(message);
+    this.name = 'AppError';
+    this.code = code;
+    this.details = details;
+    this.exitCode = exitCodes[code];
+  }
+}
+
+export function toAppError(error: unknown): AppError {
+  if (error instanceof AppError) return error;
+  return new AppError('INTERNAL_ERROR', 'An unexpected internal error occurred');
+}

@@ -1,0 +1,12 @@
+# Keep source and documentation byte-identical across development platforms and CI.
+* text=auto eol=lf
+
+# Preserve any future binary fixtures without line-ending conversion.
+*.db binary
+*.sqlite binary
+*.sqlite3 binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary

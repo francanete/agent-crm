@@ -86,7 +86,7 @@ Run every item against the final release candidate commit:
 
 Use a fresh agent session with no repository implementation context and a temporary database.
 
-- [ ] Add `docs/agent-acceptance.md` with prompts, expected behavior, and scoring
+- [x] Add `docs/agent-acceptance.md` with isolated setup, prompts, expected behavior, inspection, cleanup, evidence, and scoring
 - [x] Confirm packaged Skill discovery and a read-only health workflow in Pi
 - [x] Confirm packaged Skill discovery and a read-only health workflow in Hermes through Telegram
 - [x] Verify both baseline workflows keep JSON private and respond naturally

@@ -33,9 +33,10 @@ Explicitly out of scope for `0.1.0`:
 - [x] Decide the GitHub owner and repository URL: `https://github.com/francanete/agent-crm`
 - [x] Add the Git remote: `git@github.com:francanete/agent-crm.git`
 - [x] Review all untracked source files before the initial commit
-- [ ] Create the initial implementation commit (the repository currently has no commits)
+- [x] Create the initial implementation commit (`2630126`)
 - [x] Rename the default branch from `master` to `main`
-- [ ] Push the repository and verify the default branch/settings
+- [x] Push the repository and set local `main` to track `origin/main`
+- [x] Verify the repository is public and GitHub's default branch is `main`
 
 ## P0: package metadata
 
@@ -74,10 +75,10 @@ Run every item against the final release candidate commit:
 ## P0: cross-platform CI
 
 - [x] GitHub Actions matrix is configured for Node 24 on Linux, macOS, and Windows
-- [ ] Push and obtain a passing Linux CI run
-- [ ] Obtain a passing macOS CI run
+- [x] Push and obtain a passing Linux CI run
+- [x] Obtain a passing macOS CI run
 - [ ] Obtain a passing Windows CI run
-- [ ] Investigate any permission/path/shell differences rather than weakening tests globally
+- [x] Investigate the initial Windows CI failure: use `npm.cmd` for the test's child process instead of the POSIX `npm` executable name
 - [ ] Save/link the successful release-candidate workflow run
 
 ## Agent acceptance testing

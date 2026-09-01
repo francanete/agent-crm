@@ -16,7 +16,8 @@ function run(database: string, args: string[], input?: string): Record<string, u
 }
 
 beforeAll(() => {
-  execFileSync('npm', ['run', 'build'], { stdio: 'pipe' });
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  execFileSync(npm, ['run', 'build'], { stdio: 'pipe' });
 });
 
 describe('compiled vertical-slice CLI', () => {

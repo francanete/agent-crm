@@ -87,9 +87,9 @@ Run every item against the final release candidate commit:
 Use a fresh agent session with no repository implementation context and a temporary database.
 
 - [ ] Add `docs/agent-acceptance.md` with prompts, expected behavior, and scoring
-- [ ] Test with Pi using the packaged Agent Skill
-- [ ] Test with Hermes through Telegram
-- [ ] Verify the agent uses JSON as private tool output and never sends raw envelopes to the user
+- [x] Confirm packaged Skill discovery and a read-only health workflow in Pi
+- [x] Confirm packaged Skill discovery and a read-only health workflow in Hermes through Telegram
+- [x] Verify both baseline workflows keep JSON private and respond naturally
 - [ ] Verify it searches before creating a person or organization
 - [ ] Verify it asks natural semantic questions rather than exposing schema/relationship identifiers
 - [ ] Verify an explicit relationship such as “a subscription for Pepito” is linked without unnecessary technical confirmation

@@ -70,7 +70,8 @@ Run every item against the final release candidate commit:
 - [x] Test init/create/search/context/export/import using only the packaged binary
 - [ ] Test skill install, upgrade, conflict protection, and uninstall using only the packaged binary
 - [x] Verify CLI and skill uninstall leave the SQLite database untouched
-- [ ] Verify a database created by the pre-release build opens unchanged with the final package
+- [x] Verify a representative database created by initial commit `2630126` opens unchanged after an in-place package upgrade to `0.1.0`
+  - Compared complete native exports except `exportedAt`; IDs, schema, values, relationships, archived data, FTS search, and immutable history were preserved
 
 ## P0: cross-platform CI
 

@@ -2,7 +2,7 @@ import { execFileSync, spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { beforeAll, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
 const cliPath = path.resolve('dist/cli.js');
 
@@ -14,11 +14,6 @@ function run(database: string, args: string[], input?: string): Record<string, u
   expect(stdout.trim().split('\n')).toHaveLength(1);
   return JSON.parse(stdout) as Record<string, unknown>;
 }
-
-beforeAll(() => {
-  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  execFileSync(npm, ['run', 'build'], { stdio: 'pipe' });
-});
 
 describe('compiled vertical-slice CLI', () => {
   it('completes diagnostics, Slice A, and Slice B with JSON-only stdout', () => {

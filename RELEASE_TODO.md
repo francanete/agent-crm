@@ -78,7 +78,7 @@ Run every item against the final release candidate commit:
 - [x] Push and obtain a passing Linux CI run
 - [x] Obtain a passing macOS CI run
 - [ ] Obtain a passing Windows CI run
-- [x] Investigate Windows CI differences: use `npm.cmd` for child processes and enforce LF source files with `.gitattributes` so Biome sees identical content on every runner
+- [x] Investigate Windows CI differences: build through npm's cross-platform `pretest` lifecycle instead of spawning a command script, and enforce LF files with `.gitattributes` so Biome sees identical content on every runner
 - [ ] Save/link the successful release-candidate workflow run
 
 ## Agent acceptance testing

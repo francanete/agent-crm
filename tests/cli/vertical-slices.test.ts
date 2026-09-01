@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import packageMetadata from '../../package.json' with { type: 'json' };
 
 const cliPath = path.resolve('dist/cli.js');
 
@@ -16,6 +17,11 @@ function run(database: string, args: string[], input?: string): Record<string, u
 }
 
 describe('compiled vertical-slice CLI', () => {
+  it('reports the package version', () => {
+    const version = execFileSync(process.execPath, [cliPath, '--version'], { encoding: 'utf8' });
+    expect(version.trim()).toBe(packageMetadata.version);
+  });
+
   it('completes diagnostics, Slice A, and Slice B with JSON-only stdout', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-cli-'));
     const database = path.join(directory, 'path with spaces', 'crm.db');

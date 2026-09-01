@@ -40,13 +40,13 @@ Explicitly out of scope for `0.1.0`:
 
 ## P0: package metadata
 
-- [ ] Change `package.json` version from `0.0.0` to `0.1.0`
-- [ ] Update the CLI version constant to `0.1.0` from the same authoritative source
-- [ ] Remove `private: true` only when publication is intentional
-- [ ] Add `repository`, `homepage`, and `bugs` metadata
-- [ ] Add useful npm `keywords`
-- [ ] Add author/maintainer metadata
-- [ ] Confirm `license` is `MIT` and matches `LICENSE`
+- [x] Change `package.json` version from `0.0.0` to `0.1.0`
+- [x] Make `package.json` the authoritative CLI version source and test `agentcrm --version` against it
+- [x] Remove `private: true` for the intentional public release
+- [x] Add `repository`, `homepage`, and `bugs` metadata
+- [x] Add useful npm `keywords`
+- [x] Add author metadata
+- [x] Confirm `license` is `MIT` and matches `LICENSE`
 - [ ] Decide manual npm publication versus trusted publishing/provenance
 - [ ] Confirm the npm account has the required 2FA/publication settings
 - [ ] Recheck package-name availability immediately before publish
@@ -77,7 +77,7 @@ Run every item against the final release candidate commit:
 - [x] GitHub Actions matrix is configured for Node 24 on Linux, macOS, and Windows
 - [x] Push and obtain a passing Linux CI run
 - [x] Obtain a passing macOS CI run
-- [ ] Obtain a passing Windows CI run
+- [x] Obtain a passing Windows CI run ([workflow 33537221278](https://github.com/francanete/agent-crm/actions/runs/33537221278))
 - [x] Investigate Windows CI differences: build through npm's cross-platform `pretest` lifecycle instead of spawning a command script, and enforce LF files with `.gitattributes` so Biome sees identical content on every runner
 - [ ] Save/link the successful release-candidate workflow run
 

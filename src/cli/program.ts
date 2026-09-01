@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 import { Command, CommanderError, InvalidArgumentError, Option } from 'commander';
+import packageMetadata from '../../package.json' with { type: 'json' };
 import { resolveActor } from '../config/actor.js';
 import { resolveDatabasePath } from '../config/paths.js';
 import { getContext } from '../core/context.js';
@@ -46,7 +47,7 @@ import { initializeDatabase, openDatabase, openReadOnlyDatabase } from '../db/in
 import { installSkill, uninstallSkill } from '../integrations/skill.js';
 import { errorEnvelope, successEnvelope } from '../output/envelope.js';
 
-export const CLI_VERSION = '0.0.0';
+export const CLI_VERSION = packageMetadata.version;
 const MAX_VALUES_BYTES = 1024 * 1024;
 const MAX_FILTER_BYTES = 256 * 1024;
 

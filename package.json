@@ -1,8 +1,7 @@
 {
   "name": "agent-crm",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "A local, schema-aware relationship database for shell-capable AI agents",
-  "private": true,
   "type": "module",
   "bin": {
     "agentcrm": "./dist/cli.js"
@@ -29,7 +28,27 @@
     "prepack": "npm run build",
     "pretest": "npm run build"
   },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/francanete/agent-crm.git"
+  },
+  "homepage": "https://github.com/francanete/agent-crm#readme",
+  "bugs": {
+    "url": "https://github.com/francanete/agent-crm/issues"
+  },
+  "keywords": [
+    "ai-agent",
+    "crm",
+    "local-first",
+    "sqlite",
+    "cli",
+    "agent-skill"
+  ],
+  "author": "Fran Canete",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "commander": "^15.0.0",
     "zod": "^4.5.4"

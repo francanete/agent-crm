@@ -47,7 +47,7 @@ Explicitly out of scope for `0.1.0`:
 - [x] Add useful npm `keywords`
 - [x] Add author metadata
 - [x] Confirm `license` is `MIT` and matches `LICENSE`
-- [ ] Decide manual npm publication versus trusted publishing/provenance
+- [x] Use manual npm publication with 2FA for `0.1.0`; configure trusted publishing/provenance for later releases
 - [ ] Confirm the npm account has the required 2FA/publication settings
 - [ ] Recheck package-name availability immediately before publish
 - [x] Package contents are constrained by the `files` allowlist
@@ -65,11 +65,11 @@ Run every item against the final release candidate commit:
 - [x] `npm run build` currently passes
 - [x] `npm pack --dry-run` currently passes
 - [x] `npm audit` currently reports zero vulnerabilities
-- [ ] Add a clean-tarball installation smoke test to CI
-- [ ] Test the packaged `agentcrm --version` and `agentcrm --help`
-- [ ] Test init/create/search/context/export/import using only the packaged binary
+- [x] Add a clean-tarball installation smoke test to CI
+- [x] Test the packaged `agentcrm --version` and `agentcrm --help`
+- [x] Test init/create/search/context/export/import using only the packaged binary
 - [ ] Test skill install, upgrade, conflict protection, and uninstall using only the packaged binary
-- [ ] Verify CLI and skill uninstall leave the SQLite database untouched
+- [x] Verify CLI and skill uninstall leave the SQLite database untouched
 - [ ] Verify a database created by the pre-release build opens unchanged with the final package
 
 ## P0: cross-platform CI

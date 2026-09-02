@@ -108,7 +108,7 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 ## Documentation required for publication
 
 - [x] Add `docs/architecture.md`
-- [ ] Add `docs/privacy-security.md`, emphasizing local storage, permissions, subprocess trust, backups, and optional future network adapters
+- [x] Add `docs/privacy-security.md`, covering local storage, permissions, agent/model trust, backups, retention, and optional future network adapters
 - [ ] Add `CONTRIBUTING.md`
 - [ ] Add `SECURITY.md` with a private vulnerability-reporting path
 - [ ] Add `CHANGELOG.md` with the `0.1.0` feature set and experimental compatibility warning
@@ -132,7 +132,7 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 - [ ] Reconfirm skill installation cannot overwrite local modifications without `--force`
 - [ ] Search the repository and package tarball for secrets, personal test data, absolute developer paths, and accidental databases
 - [ ] Verify no runtime feature requires network access
-- [ ] Document that future remote MCP gateways are opt-in and change the local-only threat model
+- [x] Document that future remote MCP gateways are opt-in and change the local-only threat model
 
 ## Release candidate procedure
 

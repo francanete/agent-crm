@@ -48,7 +48,7 @@ Explicitly out of scope for `0.1.0`:
 - [x] Add author metadata
 - [x] Confirm `license` is `MIT` and matches `LICENSE`
 - [x] Use manual npm publication with 2FA for `0.1.0`; configure trusted publishing/provenance for later releases
-- [ ] Confirm the npm account has the required 2FA/publication settings
+- [x] Confirm npm account 2FA is enabled in `auth-and-writes` mode and the account email is verified
 - [ ] Recheck package-name availability immediately before publish
 - [x] Package contents are constrained by the `files` allowlist
 - [x] Built CLI has a Node shebang and executable package bin entry
@@ -141,16 +141,16 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 
 ## Release candidate procedure
 
-- [ ] Freeze dependencies and run `npm ci` from a clean checkout
-- [ ] Run `npm run check`
-- [ ] Run `npm run build`
-- [ ] Run `npm audit`
-- [ ] Create the tarball with `npm pack`
-- [ ] Inspect tarball contents with `npm pack --dry-run` or `tar -tf`
-- [ ] Install the tarball globally in a clean Node 24 environment
-- [ ] Run the packaged end-to-end and agent acceptance smoke tests
-- [ ] Confirm all GitHub Actions jobs pass on the exact release commit
-- [ ] Review `git diff`, `git status`, package metadata, and changelog
+- [x] Freeze dependencies and run `npm ci` from a clean checkout
+- [x] Run `npm run check`
+- [x] Run `npm run build`
+- [x] Run `npm audit`
+- [x] Create the tarball with `npm pack`
+- [x] Inspect tarball contents with `npm pack --dry-run` and the packed-archive secret/path scan
+- [x] Install the tarball in isolated Node environments through the package smoke test
+- [x] Run the packaged end-to-end and direct-agent acceptance tests
+- [x] Confirm all GitHub Actions jobs pass on exact release commit `6d9bc0f`: [workflow 33630146330](https://github.com/francanete/agent-crm/actions/runs/33630146330)
+- [x] Review `git diff`, `git status`, package metadata, and GitHub-release-notes changelog plan
 - [ ] Tag the exact commit as `v0.1.0`
 - [ ] Publish with the chosen npm publication/provenance process
 - [ ] Create a GitHub release from `v0.1.0` with changelog and install instructions
@@ -170,8 +170,8 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 Publish only when:
 
 - [ ] Every P0 item is complete
-- [ ] Linux, macOS, and Windows CI pass on the release commit
-- [ ] Clean packaged installation passes
-- [ ] Pi and Hermes/Telegram agent acceptance tests pass
-- [ ] Documentation and security review are complete
-- [ ] No known issue risks data loss, silent partial mutation, raw tool output exposure, or accidental network access
+- [x] Linux, macOS, and Windows CI pass on release commit `6d9bc0f`
+- [x] Clean packaged installation passes
+- [x] Pi and Hermes/Telegram agent acceptance tests pass
+- [x] Documentation and security review are complete
+- [x] No known issue risks data loss, silent partial mutation, raw tool output exposure, or accidental network access

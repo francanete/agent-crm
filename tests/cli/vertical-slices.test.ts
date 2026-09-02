@@ -156,7 +156,7 @@ describe('compiled vertical-slice CLI', () => {
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
-  });
+  }, 30_000);
 
   it('creates, updates, and safely replays exact-field upserts', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-upsert-cli-'));

@@ -186,6 +186,58 @@ agentcrm --db ./crm.db doctor --json
 
 Checks include database version, POSIX permissions, foreign-key integrity, FTS5 consistency, and default schema availability. `healthy` is false when a required integrity check fails; warnings remain visible in `checks`.
 
+## Setup
+
+### `setup`
+
+Run guided setup in a trusted local terminal:
+
+```bash
+agentcrm setup
+```
+
+The command is intentionally interactive only when stdin, stdout, and stderr are terminals. It shows the selected database path and local-data notice, asks before creating an absent database, presents detected hosts, allows a comma-separated subset such as `pi, claude-code` (or `none`), then shows a final summary and asks again before writing.
+
+It does not run from an ordinary agent chat, change shell/service configuration, restart hosts, or install every cataloged host by default. On a pipe or CI command it fails with `SETUP_INTERACTIVE_TTY_REQUIRED`; use plan/apply instead.
+
+### `setup plan`
+
+Inspect database and host setup without filesystem mutation:
+
+```bash
+agentcrm --db ./crm.db setup plan --json
+```
+
+The plan reports database state, selection source, local privacy notice, host detection evidence, host Skill state, destination groups, and restart guidance. It creates neither a database nor a Skill directory.
+
+### `setup apply`
+
+Use a deterministic, non-prompting operation only after a local administrator has reviewed the plan and consented:
+
+```bash
+agentcrm --db ./crm.db setup apply \
+  --initialize \
+  --agent pi \
+  --agent claude-code \
+  --yes \
+  --json
+```
+
+Options:
+
+| Option | Meaning |
+| --- | --- |
+| `--initialize` | Create an absent database or apply supported migrations to the selected database |
+| `--agent <pi|claude-code|hermes>` | Install the bundled Skill for an explicit host; repeat for several hosts |
+| `--all-detected` | Select detected verified hosts only; never selects a cataloged but undetected host |
+| `--no-skill` | Initialize the database without installing any Skill |
+| `--force-skill` | Replace a selected modified Skill after explicit review; does not bypass symlink safety |
+| `--yes` | Confirm only the actions supplied on this command; it does not select hosts implicitly |
+
+An absent database requires both `--initialize` and `--yes`. Apply rejects unsafe database targets, unsafe Skill paths, and unowned or locally modified Skills unless `--force-skill` is explicit. Separate Skill roots are applied independently; an error after one success reports `SETUP_PARTIAL_FAILURE` with completed and failed destinations, and retrying is safe.
+
+Known setup destinations are Pi at `~/.agents/skills`, Claude Code at `$CLAUDE_CONFIG_DIR/skills` or `~/.claude/skills`, and Hermes at `~/.hermes/skills`. Pi and Claude Code require fresh sessions; Hermes needs a fresh session or gateway restart. Setup only reports this guidance and never restarts a process.
+
 ## Schema commands
 
 ### `schema show`

@@ -504,6 +504,53 @@ describe('compiled vertical-slice CLI', () => {
     }
   });
 
+  it('plans setup without writes and requires explicit consent to apply it', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-setup-cli-'));
+    const database = path.join(directory, 'nested', 'crm.db');
+
+    try {
+      const plan = run(database, ['setup', 'plan']);
+      expect(plan).toMatchObject({
+        ok: true,
+        data: {
+          database: { path: database, state: 'absent', selection: 'explicit' },
+          actions: { canInitializeDatabase: true },
+        },
+      });
+      expect(fs.existsSync(path.dirname(database))).toBe(false);
+
+      const nonInteractive = spawnSync(process.execPath, [cliPath, 'setup', '--json'], {
+        encoding: 'utf8',
+      });
+      expect(nonInteractive.status).toBe(2);
+      expect(JSON.parse(nonInteractive.stdout)).toMatchObject({
+        ok: false,
+        error: { code: 'SETUP_INTERACTIVE_TTY_REQUIRED' },
+      });
+
+      const missingConsent = spawnSync(
+        process.execPath,
+        [cliPath, '--db', database, 'setup', 'apply', '--initialize', '--no-skill', '--json'],
+        { encoding: 'utf8' },
+      );
+      expect(missingConsent.status).toBe(2);
+      expect(JSON.parse(missingConsent.stdout)).toMatchObject({
+        ok: false,
+        error: { code: 'SETUP_CONFIRMATION_REQUIRED' },
+      });
+      expect(fs.existsSync(database)).toBe(false);
+
+      const applied = run(database, ['setup', 'apply', '--initialize', '--no-skill', '--yes']);
+      expect(applied).toMatchObject({
+        ok: true,
+        data: { database: { action: 'initialized', path: database }, skillInstallations: [] },
+      });
+      expect(run(database, ['doctor'])).toMatchObject({ ok: true, data: { healthy: true } });
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('installs and safely uninstalls the bundled skill without touching CRM data', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-skill-cli-'));
     const database = path.join(directory, 'crm.db');

@@ -2,7 +2,7 @@
 
 Use this checklist to qualify Agent CRM with a real shell-capable agent. It tests behavior that domain and CLI tests cannot prove: skill discovery, natural conversation, safe ambiguity handling, and keeping tool JSON out of the user-facing channel.
 
-Run the critical scenarios in both Pi and Hermes through Telegram before release. Use fake data and an isolated database; never run acceptance tests against a real CRM.
+Run the critical scenarios in Pi and Claude Code, plus Hermes through Telegram, before release. Use fake data and an isolated database; never run acceptance tests against a real CRM.
 
 ## Test record
 
@@ -18,17 +18,25 @@ Record this information with the results:
 | Test database | |
 | Tester | |
 
-For Hermes/Telegram, also record the Hermes version and whether the terminal tool is enabled for Telegram.
+For Hermes/Telegram, also record the Hermes version and whether the terminal tool is enabled for Telegram. For Claude Code, record the configured Skill root (`CLAUDE_CONFIG_DIR` when set) and whether a fresh session discovered the newly installed Skill.
 
 ## Isolated setup
 
-Create a persistent temporary location so commands sent in separate Telegram turns use the same database:
+First validate host setup from a trusted terminal. For each selected host, run setup against an isolated database, confirm the planned destination, then start a fresh host session:
 
 ```bash
 TEST_ROOT="$(mktemp -d -t agentcrm-acceptance-XXXXXX)"
 TEST_DB="$TEST_ROOT/crm.db"
+agentcrm --db "$TEST_DB" setup plan --json
+agentcrm --db "$TEST_DB" setup apply --initialize --agent <pi|claude-code|hermes> --yes --json
+```
+
+Verify that the Skill and managed manifest appear only under that host's selected root, that `TEST_DB` is the only database created, and that npm/Skill installation did not alter shell or service configuration. Hermes requires a deliberate gateway restart; Pi and Claude Code require fresh sessions.
+
+Use that same persistent location in every acceptance turn:
+
+```bash
 printf 'Test database: %s\n' "$TEST_DB"
-agentcrm --db "$TEST_DB" init --json
 agentcrm --db "$TEST_DB" doctor --json
 ```
 

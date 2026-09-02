@@ -14,6 +14,7 @@ const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-package-sm
 const packageDirectory = path.join(temporaryRoot, 'package');
 const installDirectory = path.join(temporaryRoot, 'install');
 const dataDirectory = path.join(temporaryRoot, 'data with spaces');
+const setupDatabase = path.join(temporaryRoot, 'setup data', 'crm.db');
 const database = path.join(dataDirectory, 'crm.db');
 const restoredDatabase = path.join(dataDirectory, 'restored.db');
 const exportFile = path.join(temporaryRoot, 'backup.json');
@@ -77,6 +78,19 @@ try {
   installPackage(tarball);
   assert.equal(runCli(['--version']).trim(), expectedVersion);
   assert.match(runCli(['--help']), /Usage: agentcrm/);
+
+  const setupPlan = crm(setupDatabase, ['setup', 'plan']);
+  assert.equal(setupPlan.database.state, 'absent');
+  assert.equal(fs.existsSync(path.dirname(setupDatabase)), false);
+  const setupApplied = crm(setupDatabase, [
+    'setup',
+    'apply',
+    '--initialize',
+    '--no-skill',
+    '--yes',
+  ]);
+  assert.equal(setupApplied.database.action, 'initialized');
+  assert.ok(fs.existsSync(setupDatabase));
 
   assert.equal(crm(database, ['init']).created, true);
   const person = crm(database, [

@@ -44,11 +44,19 @@ npm install --global agent-crm
 agentcrm --version
 ```
 
-Initialize the platform-default database:
+Set up the platform-default database and selected local agent hosts:
 
 ```bash
-agentcrm init --json
-agentcrm doctor --json
+agentcrm setup
+```
+
+Setup is terminal-only and asks before creating the database or writing any Agent Skill. It shows the selected database path, detects Pi, Claude Code, and Hermes, lets you select hosts individually, and gives session/restart guidance afterward. npm installation itself makes no data or host changes.
+
+For deterministic automation or an agent-guided UI, preview first and then apply only explicit actions:
+
+```bash
+agentcrm setup plan --json
+agentcrm setup apply --initialize --agent pi --yes --json
 ```
 
 Database selection precedence is `--db`, then `AGENTCRM_DB`, then the platform default. See the [CLI reference](docs/cli-reference.md#database-path-precedence) for paths.
@@ -61,41 +69,29 @@ agentcrm init --json
 agentcrm doctor --json
 ```
 
-## Install the Agent Skill
+## Enable an Agent Skill
 
-Install the bundled Skill for Pi and hosts using the shared Agent Skills location:
+`agentcrm setup` is the recommended path. It installs a managed copy only for the hosts you select:
 
-```bash
-agentcrm integration install-skill --json
-```
+| Host | Skill root | After setup |
+| --- | --- | --- |
+| Pi | `~/.agents/skills` | Start a fresh Pi session |
+| Claude Code | `$CLAUDE_CONFIG_DIR/skills`, or `~/.claude/skills` | Start a fresh Claude Code session |
+| Hermes | `~/.hermes/skills` | Restart the gateway or start a fresh session |
 
-Default destination:
+The `agentcrm` executable must be visible on the agent or gateway process `PATH`. Setup does not edit `PATH`, shell profiles, or service files, and never restarts a host automatically.
 
-```text
-~/.agents/skills/agentcrm/SKILL.md
-```
-
-For Hermes, use its personal Skill root and restart the gateway:
+For a custom or future host root, retain the manual installer:
 
 ```bash
-agentcrm integration install-skill --destination ~/.hermes/skills --json
-hermes gateway restart
+agentcrm integration install-skill --destination /path/to/skills --json
 ```
 
-The `agentcrm` executable must be visible on the agent or gateway process `PATH`. Start a fresh agent session after installation so it reloads Skill discovery.
+The installer records a managed hash. It upgrades an unmodified managed copy and refuses to overwrite unowned or locally modified instructions unless force is explicit. Skill and npm uninstall never remove CRM data.
 
-The installer records a managed hash. It upgrades an unmodified managed copy and refuses to overwrite unowned or locally modified instructions unless `--force` is explicit.
+Hermes can serve several chat identities under one OS account. Without a future identity-to-profile mapping, every permitted gateway conversation uses the selected single local CRM. Enable it only when that shared database is appropriate.
 
-Verified for `0.1.0`:
-
-| Host | Status |
-| --- | --- |
-| Pi | Skill discovery and direct conversational workflow verified |
-| Hermes through Telegram | Skill discovery and direct conversational workflow verified |
-| Codex | Not yet manually verified |
-| Claude Code | Custom destination supported; not yet manually verified |
-
-Any shell-capable agent can use the CLI without automatic Skill discovery.
+Pi and Hermes have prior direct-agent acceptance coverage. Claude Code setup support must pass clean-host acceptance before it is described as verified. Any shell-capable agent can use the CLI without automatic Skill discovery.
 
 ## Quick start
 

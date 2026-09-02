@@ -235,7 +235,11 @@ The Agent Skill is a Markdown instruction file. Installing it grants no operatin
 
 The managed installer records a content hash. It refuses to replace or remove an unowned or locally modified Skill without explicit `--force`. This prevents silent loss of local instructions; it does not prove that the original package is trustworthy.
 
-Review package and Skill changes before upgrading. Install Skills only into the intended host directory. Pi and Hermes use separate Skill roots in the documented setup.
+Review package and Skill changes before upgrading. Install Skills only into intended host directories. `agentcrm setup` is an explicit local-administrator operation: it previews targets, asks before creating a database or writing a Skill, and does not modify hosts during npm installation.
+
+The setup catalog uses `~/.agents/skills` for Pi, `$CLAUDE_CONFIG_DIR/skills` or `~/.claude/skills` for Claude Code, and `~/.hermes/skills` for Hermes. Setup never edits `PATH`, shell profiles, systemd/launchd services, or gateway configuration, and never restarts a host. A background gateway may have a different `PATH` than the invoking terminal; its administrator must diagnose and correct that environment separately.
+
+A normal agent conversation must not administer Skill destinations. It may ask for consent to initialize its already-selected CRM database, but it must not use chat consent to detect hosts, install Skills, force replacement, or select every agent. Hermes and similar gateways may serve multiple chat identities under one OS user; absent an explicit future identity-to-profile mapping, those identities share the one selected local CRM.
 
 ## Input and resource bounds
 

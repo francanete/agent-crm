@@ -1,128 +1,344 @@
 # Agent CRM
 
-A local, schema-aware relationship database designed for shell-capable AI agents.
+[![CI](https://github.com/francanete/agent-crm/actions/workflows/ci.yml/badge.svg)](https://github.com/francanete/agent-crm/actions/workflows/ci.yml)
 
-> Early implementation: the CLI and data format are not yet stable.
+A local-first, schema-aware relationship database for shell-capable AI agents.
 
-## Development
+Agent CRM gives agents durable contact, organization, interaction, follow-up, custom-object, and relationship memory through a deterministic CLI. SQLite is the system of record: there is no CRM server, account, telemetry, or runtime network dependency.
 
-Requires Node.js 24 or newer.
+> **Experimental `0.1.0`:** CLI JSON contracts are tested and versioned, but the CLI, database format, and native export format may evolve before `1.0`. Back up important data before upgrading.
 
-```bash
-npm install
-npm run build
-node dist/cli.js --help
-```
+## Why Agent CRM?
 
-## Implemented vertical slices
+General-purpose agent memory is not enough for reliable CRM workflows. Agents need to distinguish a person from an organization, validate dates and enums, avoid duplicate retries, preserve provenance, and query relationships without guessing.
 
-```bash
-agentcrm --db ./crm.db init --json
-agentcrm --db ./crm.db doctor --json
-agentcrm --db ./crm.db schema show --json
+Agent CRM provides:
 
-agentcrm --db ./crm.db record create person --values '{"name":"Ana"}' --json
-agentcrm --db ./crm.db record create organization --values '{"name":"Acme"}' --json
-agentcrm --db ./crm.db relationship add <person-id> works_at <organization-id> --json
-agentcrm --db ./crm.db relationship list <person-id> --json
-agentcrm --db ./crm.db context <person-id> --json
+- one portable local SQLite database;
+- built-in people, organizations, interactions, and follow-ups;
+- custom objects and typed fields;
+- directed semantic relationships;
+- schema-aware validation and structured parameterized filters;
+- SQLite FTS5 search without embeddings;
+- bounded relationship context for meeting preparation;
+- immutable mutation history with actor and source provenance;
+- idempotent mutations and exact-field upsert;
+- reversible archive/restore lifecycle;
+- versioned native backup and transactional restore;
+- explicitly mapped, atomic CSV import;
+- a bundled portable Agent Skill.
 
-agentcrm --db ./crm.db record list followup \
-  --filter '{"all":[{"field":"status","op":"eq","value":"open"},{"field":"due_at","op":"lte","value":"2026-09-06T23:59:59Z"}]}' \
-  --sort due_at:asc --json
+## Requirements
 
-agentcrm --db ./crm.db schema field add person priority \
-  --label Priority --type enum --options '["high","normal","low"]' --json
-agentcrm --db ./crm.db record update <person-id> --values '{"priority":"high"}' --json
-agentcrm --db ./crm.db record upsert person --match email=ana@example.com \
-  --values '{"name":"Ana","role":"CTO"}' --json
-agentcrm --db ./crm.db search "proposal" --object person --json
-agentcrm --db ./crm.db history <person-id> --json
+- Node.js 24 or newer
+- npm
 
-agentcrm --db ./crm.db record archive <person-id> --json
-agentcrm --db ./crm.db record list person --include-archived --json
-agentcrm --db ./crm.db record restore <person-id> --json
-agentcrm --db ./crm.db relationship archive <relationship-id> --json
-agentcrm --db ./crm.db relationship restore <relationship-id> --json
-```
+No external database server or SQLite package is required. Agent CRM uses Node.js `node:sqlite`.
 
-Exact-field upsert creates on zero matches and updates one active match. It refuses multiple or
-archived matches, making it suitable for retryable imports keyed by stable email or domain.
+## Install
 
-Archive operations preserve values and immutable history. Archived records are hidden from normal
-lists, search, relationships, and context until restored. Schema fields can also be archived while
-retaining legacy values; restoration validates active records before making the field searchable.
-
-## CSV import
-
-Map CSV headers explicitly and dry-run before the atomic import:
+After the public release:
 
 ```bash
-agentcrm --db ./crm.db csv import contacts.csv --object person \
-  --map 'Full Name=name' --map 'Email=email' --map 'Role=role' \
-  --match email --dry-run --json
-agentcrm --db ./crm.db --idempotency-key contacts-2026-09 \
-  csv import contacts.csv --object person \
-  --map 'Full Name=name' --map 'Email=email' --map 'Role=role' \
-  --match email --json
+npm install --global agent-crm
+agentcrm --version
 ```
 
-The adapter validates every row and rolls back the entire import if any row fails. See
-[`docs/csv-import.md`](docs/csv-import.md) for type conversion, limits, and retry behavior.
-
-## Backup and portability
-
-Create a complete native logical export, validate it against a pristine target, then import it:
+Initialize the platform-default database:
 
 ```bash
-agentcrm --db ./crm.db export --output backup.json --json
-agentcrm --db ./restored.db init --json
-agentcrm --db ./restored.db import backup.json --dry-run --json
-agentcrm --db ./restored.db import backup.json --json
+agentcrm init --json
+agentcrm doctor --json
 ```
 
-Exports preserve schema, records, archived data, relationships, IDs, timestamps, and immutable
-history. Use `--without-history` for a smaller export. Import is fully validated and transactional;
-it refuses non-pristine targets. See [`docs/import-export.md`](docs/import-export.md). Vendor CRM
-adapters are not implemented yet; CSV remains a separate explicitly mapped adapter.
+Database selection precedence is `--db`, then `AGENTCRM_DB`, then the platform default. See the [CLI reference](docs/cli-reference.md#database-path-precedence) for paths.
 
-## Agent Skill
+For an isolated trial:
 
-Install the bundled standards-compatible Agent Skill:
+```bash
+export AGENTCRM_DB="$(mktemp -d -t agentcrm-trial-XXXXXX)/crm.db"
+agentcrm init --json
+agentcrm doctor --json
+```
+
+## Install the Agent Skill
+
+Install the bundled Skill for Pi and hosts using the shared Agent Skills location:
 
 ```bash
 agentcrm integration install-skill --json
 ```
 
-The default destination is `~/.agents/skills/agentcrm/SKILL.md`. Installation is idempotent,
-upgrades an unmodified managed copy, and refuses to overwrite local changes unless `--force`
-is explicit. A harness-specific root can be selected without changing the skill:
+Default destination:
 
-```bash
-agentcrm integration install-skill --destination ~/.claude/skills --json
+```text
+~/.agents/skills/agentcrm/SKILL.md
 ```
 
-Discovery status:
+For Hermes, use its personal Skill root and restart the gateway:
 
-| Harness | Skills root | Status |
-| --- | --- | --- |
-| Pi | `~/.agents/skills` | Documented and covered by the install smoke test |
-| Codex | harness-configured skills root | Not yet manually verified |
-| Claude Code | `~/.claude/skills` | Destination supported; not yet manually verified |
-| Hermes | harness-configured skills root | Not yet manually verified |
+```bash
+agentcrm integration install-skill --destination ~/.hermes/skills --json
+hermes gateway restart
+```
 
-Shell-capable agents can still use the CLI without automatic skill discovery. Do not claim a
-harness integration is verified until its release checklist has been run.
+The `agentcrm` executable must be visible on the agent or gateway process `PATH`. Start a fresh agent session after installation so it reloads Skill discovery.
 
-Remove only the managed skill with:
+The installer records a managed hash. It upgrades an unmodified managed copy and refuses to overwrite unowned or locally modified instructions unless `--force` is explicit.
+
+Verified for `0.1.0`:
+
+| Host | Status |
+| --- | --- |
+| Pi | Skill discovery and direct conversational workflow verified |
+| Hermes through Telegram | Skill discovery and direct conversational workflow verified |
+| Codex | Not yet manually verified |
+| Claude Code | Custom destination supported; not yet manually verified |
+
+Any shell-capable agent can use the CLI without automatic Skill discovery.
+
+## Quick start
+
+### Search before creating
+
+```bash
+agentcrm search "ana@example.com" --object person --json
+```
+
+Create a person only after checking likely matches:
+
+```bash
+agentcrm --idempotency-key person-ana-v1 \
+  record create person \
+  --values '{"name":"Ana","email":"ana@example.com","role":"CTO"}' \
+  --json
+```
+
+Create an organization and link it:
+
+```bash
+agentcrm --idempotency-key organization-acme-v1 \
+  record create organization \
+  --values '{"name":"Acme","domain":"example.com"}' \
+  --json
+
+agentcrm --idempotency-key ana-works-at-acme-v1 \
+  relationship add <person-id> works_at <organization-id> \
+  --json
+```
+
+Retrieve bounded relationship memory:
+
+```bash
+agentcrm context <person-id> --json
+agentcrm history <person-id> --json
+```
+
+### Exact-field upsert
+
+```bash
+agentcrm --idempotency-key contact-import-ana-v1 \
+  record upsert person \
+  --match email=ana@example.com \
+  --values '{"name":"Ana","role":"CTO"}' \
+  --json
+```
+
+Upsert creates on zero active matches and partially updates one active match. It refuses multiple matches and archived matches rather than guessing, restoring, or silently duplicating data.
+
+### Structured queries
+
+```bash
+agentcrm record list followup \
+  --filter '{"all":[{"field":"status","op":"eq","value":"open"},{"field":"due_at","op":"lte","value":"2026-09-06T23:59:59Z"}]}' \
+  --sort due_at:asc \
+  --json
+```
+
+Filters are a validated JSON AST compiled to parameterized SQL. Agent CRM does not accept arbitrary SQL from callers.
+
+### Custom schema
+
+```bash
+agentcrm schema object add subscription \
+  --label Subscription \
+  --plural-label Subscriptions \
+  --title-field name \
+  --title-field-label Name \
+  --json
+
+agentcrm schema field add subscription plan \
+  --label Plan \
+  --type enum \
+  --options '["free","pro","enterprise"]' \
+  --json
+```
+
+Field types include text, number, boolean, date, datetime, enum, multi-select, and JSON. Optional formats include email, phone, URL, currency, and percentage.
+
+### Archive and restore
+
+```bash
+agentcrm record archive <record-id> --json
+agentcrm record restore <record-id> --json
+agentcrm relationship archive <relationship-id> --json
+agentcrm relationship restore <relationship-id> --json
+```
+
+Archive preserves values, relationships, stable IDs, and immutable history. Archived records are hidden from normal list, search, context, and relationship results until restored. Archive is retention, not permanent erasure.
+
+## CSV import
+
+Map headers explicitly and dry-run before applying an import:
+
+```bash
+agentcrm csv import ./contacts.csv \
+  --object person \
+  --map 'Full Name=name' \
+  --map 'Email=email' \
+  --map 'Role=role' \
+  --match email \
+  --dry-run \
+  --json
+```
+
+Apply the validated mapping with a stable retry key:
+
+```bash
+agentcrm --idempotency-key contacts-2026-09-v1 \
+  csv import ./contacts.csv \
+  --object person \
+  --map 'Full Name=name' \
+  --map 'Email=email' \
+  --map 'Role=role' \
+  --match email \
+  --json
+```
+
+CSV import supports RFC-style quotes, escaped quotes, embedded newlines, CRLF, UTF-8 BOM, strict UTF-8, and schema-aware conversion. A real import is atomic: any failed row rolls back the entire file.
+
+See [CSV import](docs/csv-import.md).
+
+## Backup and restore
+
+Create a complete versioned logical backup:
+
+```bash
+agentcrm export --output ./backup.json --json
+```
+
+Validate and restore into a pristine initialized database:
+
+```bash
+agentcrm --db ./restored.db init --json
+agentcrm --db ./restored.db import ./backup.json --dry-run --json
+agentcrm --db ./restored.db --idempotency-key restore-backup-v1 \
+  import ./backup.json --json
+```
+
+Native export preserves schema, records, relationships, IDs, timestamps, archived data, and immutable history. `--without-history` creates a smaller export but is not a general redaction tool. Import refuses a target containing user data or logical schema changes and never performs an ambiguous merge.
+
+See [Native import and export](docs/import-export.md).
+
+## Stable JSON output
+
+Agents and scripts should pass `--json` explicitly. Success:
+
+```json
+{
+  "ok": true,
+  "data": {},
+  "meta": {
+    "database": "/absolute/path/to/crm.db",
+    "cliVersion": "0.1.0"
+  }
+}
+```
+
+Failure:
+
+```json
+{
+  "ok": false,
+  "error": {
+    "code": "STABLE_ERROR_CODE",
+    "message": "Readable explanation",
+    "details": {}
+  }
+}
+```
+
+Machine callers should check both the process status and `ok`. The bundled Skill instructs agents to treat JSON as private tool output and present results naturally instead of exposing envelopes to users.
+
+## Safety model
+
+- Every supported mutation is schema-validated and transactional.
+- Domain changes, FTS updates, and immutable events commit together.
+- Idempotency keys replay only the same normalized request; conflicting reuse fails.
+- ID prefixes must be at least eight characters and unambiguous.
+- Native import is validated, bounded, pristine-target-only, and transactional.
+- CSV dry-run follows the real decision path; real import is all-or-nothing.
+- Skill installation protects unowned and locally modified files.
+- npm and Skill uninstall never remove CRM data.
+- Agent CRM makes no runtime network requests.
+
+The SQLite database and exports are not encrypted by Agent CRM. Agent hosts, model providers, and messaging channels remain part of the privacy boundary. Read [Privacy and security](docs/privacy-security.md) before storing sensitive data.
+
+## Uninstall
+
+Remove managed Skills first:
 
 ```bash
 agentcrm integration uninstall-skill --json
+agentcrm integration uninstall-skill --destination ~/.hermes/skills --json
 ```
 
-Uninstall refuses to remove a modified skill without `--force`. Removing the skill or npm
-package never removes the SQLite database. CRM data remains at the selected `--db`,
-`AGENTCRM_DB`, or platform-default data path.
+Then remove the package:
 
-All runtime data remains in the selected local SQLite database. The application makes no
-network requests.
+```bash
+npm uninstall --global agent-crm
+```
+
+These commands intentionally preserve the SQLite database. Back up important data and verify the selected database path before manually removing any files.
+
+## Documentation
+
+- [CLI reference](docs/cli-reference.md)
+- [Architecture](docs/architecture.md)
+- [Privacy and security](docs/privacy-security.md)
+- [Native import and export](docs/import-export.md)
+- [CSV import](docs/csv-import.md)
+- [Agent acceptance checklist](docs/agent-acceptance.md)
+- [Contributing](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Architecture decisions](docs/decisions/)
+
+## Development
+
+```bash
+git clone https://github.com/francanete/agent-crm.git
+cd agent-crm
+npm ci
+npm run check
+npm run package:smoke
+```
+
+The CI matrix runs Node.js 24 on Linux, macOS, and Windows. See [CONTRIBUTING.md](CONTRIBUTING.md) for project conventions and release-sensitive invariants.
+
+## Roadmap boundaries
+
+Not included in `0.1.0`:
+
+- MCP adapter or server
+- A2UI/generative UI renderer
+- hosted service or synchronization
+- vendor-specific CRM adapters
+- embeddings or vector search
+- automatic duplicate merge
+- graphical viewer
+
+Future MCP and presentation integrations remain optional adapters around the local domain layer. They do not require changing SQLite's role as the authoritative store.
+
+## License
+
+[MIT](LICENSE)

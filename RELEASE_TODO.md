@@ -120,8 +120,8 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 - [x] Document native export/import
 - [x] Document CSV import
 - [x] Record presentation-adapter/A2UI boundary in ADR 0003
-- [ ] Review README claims and remove every unverified compatibility claim
-- [ ] Ensure README clearly labels `0.1.0` experimental and the data format subject to pre-1.0 evolution
+- [x] Review README claims and distinguish verified Pi/Hermes workflows from unverified host compatibility
+- [x] Ensure README clearly labels `0.1.0` experimental and the CLI, database, and native export formats subject to pre-1.0 evolution
 
 ## Security and privacy review
 

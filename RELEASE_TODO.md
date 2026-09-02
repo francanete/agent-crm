@@ -80,7 +80,7 @@ Run every item against the final release candidate commit:
 - [x] Obtain a passing macOS CI run
 - [x] Obtain a passing Windows CI run ([workflow 33537221278](https://github.com/francanete/agent-crm/actions/runs/33537221278))
 - [x] Investigate Windows CI differences: build through npm's cross-platform `pretest` lifecycle instead of spawning a command script, and enforce LF files with `.gitattributes` so Biome sees identical content on every runner
-- [ ] Save/link the successful release-candidate workflow run
+- [x] Save the successful security-hardened release-candidate run: [workflow 33617921093](https://github.com/francanete/agent-crm/actions/runs/33617921093) (`1c17924`, Linux/macOS/Windows)
 
 ## Agent acceptance testing
 
@@ -90,18 +90,22 @@ Use a fresh agent session with no repository implementation context and a tempor
 - [x] Confirm packaged Skill discovery and a read-only health workflow in Pi
 - [x] Confirm packaged Skill discovery and a read-only health workflow in Hermes through Telegram
 - [x] Verify both baseline workflows keep JSON private and respond naturally
-- [ ] Verify it searches before creating a person or organization
-- [ ] Verify it asks natural semantic questions rather than exposing schema/relationship identifiers
-- [ ] Verify an explicit relationship such as “a subscription for Pepito” is linked without unnecessary technical confirmation
-- [ ] Verify ambiguous identity does not cause a guessed mutation
-- [ ] Verify retries use stable idempotency keys and do not duplicate data
-- [ ] Verify meeting logging plus follow-up creation
-- [ ] Verify context-based meeting preparation
-- [ ] Verify custom object and field creation requires appropriate confirmation
-- [ ] Verify archive/restore behavior
-- [ ] Verify CSV import is dry-run first and mappings are confirmed
-- [ ] Inspect resulting records, relationships, FTS results, and event history after each scenario
-- [ ] Record harness/version, prompt, outcome, and any failure for reproducibility
+- [x] Verify it searches before creating a person or organization
+- [x] Verify it asks natural semantic questions rather than exposing schema/relationship identifiers
+- [x] Verify an explicit relationship such as “a subscription for Pepito” is linked without unnecessary technical confirmation
+- [x] Verify ambiguous identity does not cause a guessed mutation
+- [x] Verify retries use stable idempotency keys and do not duplicate data
+- [x] Verify meeting logging plus follow-up creation
+- [x] Verify context-based meeting preparation
+- [x] Verify custom object and field creation requires appropriate confirmation
+- [x] Verify archive/restore behavior
+- [x] Verify CSV import is dry-run first and mappings are confirmed
+- [x] Inspect resulting records, relationships, FTS results, and event history after each scenario
+- [x] Record harness/version, prompt, outcome, and any failure for reproducibility
+  - 2026-09-02, packaged `agent-crm@0.1.0` from release candidate `1c17924`, Node `26.7.0`
+  - Pi `0.84.4`, OpenAI Codex `gpt-5.6-terra` with one auto-routed `gpt-5.6-luna/high` turn: A2–A8 and final export/inspection passed; no observations or failures
+  - Hermes Agent `0.20.6` (`e60983a6`), Telegram terminal enabled, OpenAI Codex `gpt-5.6-terra`: prior create/link plus targeted duplicate, ambiguity/clarified update, and CSV dry-run checks passed; no observations or failures
+  - Exact prompts and inspection criteria are recorded in `docs/agent-acceptance.md`; temporary test exports were retained outside the repository
 
 Do not claim Codex, Claude Code, or Hermes skill discovery as verified until each corresponding test passes.
 

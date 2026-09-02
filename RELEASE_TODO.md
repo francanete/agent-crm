@@ -109,7 +109,7 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 
 - [x] Add `docs/architecture.md`
 - [x] Add `docs/privacy-security.md`, covering local storage, permissions, agent/model trust, backups, retention, and optional future network adapters
-- [ ] Add `CONTRIBUTING.md`
+- [x] Add `CONTRIBUTING.md`
 - [ ] Add `SECURITY.md` with a private vulnerability-reporting path
 - [ ] Add `CHANGELOG.md` with the `0.1.0` feature set and experimental compatibility warning
 - [ ] Add a concise CLI command reference or ensure every command is discoverable from README/help

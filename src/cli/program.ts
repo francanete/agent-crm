@@ -5,6 +5,7 @@ import { Command, CommanderError, InvalidArgumentError, Option } from 'commander
 import packageMetadata from '../../package.json' with { type: 'json' };
 import { resolveActor } from '../config/actor.js';
 import { resolveDatabasePath } from '../config/paths.js';
+import { readBoundedBytes } from '../core/bounded-input.js';
 import { getContext } from '../core/context.js';
 import { type CsvFieldMapping, importCsv, MAX_CSV_BYTES } from '../core/csv.js';
 import { diagnoseDatabase } from '../core/doctor.js';
@@ -182,16 +183,17 @@ function readCsvInput(input: string): string {
   }
   let content: Buffer;
   try {
-    content = fs.readFileSync(input === '-' ? 0 : input);
+    content = readBoundedBytes(input === '-' ? 0 : input, MAX_CSV_BYTES, () => {
+      throw new AppError(
+        'CSV_IMPORT_INVALID',
+        `CSV input exceeds the ${MAX_CSV_BYTES} byte limit`,
+        { maxBytes: MAX_CSV_BYTES },
+      );
+    });
   } catch (error) {
+    if (error instanceof AppError) throw error;
     throw new AppError('CSV_IMPORT_INVALID', `Cannot read CSV input '${input}'`, {
       cause: error instanceof Error ? error.message : String(error),
-    });
-  }
-  if (content.byteLength > MAX_CSV_BYTES) {
-    throw new AppError('CSV_IMPORT_INVALID', `CSV input exceeds the ${MAX_CSV_BYTES} byte limit`, {
-      maxBytes: MAX_CSV_BYTES,
-      actualBytes: content.byteLength,
     });
   }
   try {
@@ -271,14 +273,14 @@ function readValues(options: CreateOptions): Record<string, unknown> {
   try {
     if (options.values !== undefined) {
       input = options.values;
-    } else if (options.valuesFile === '-') {
-      input = fs.readFileSync(0, 'utf8');
     } else {
       const valuesFile = options.valuesFile as string;
-      if (fs.statSync(valuesFile).size > MAX_VALUES_BYTES) {
+      if (valuesFile !== '-' && fs.statSync(valuesFile).size > MAX_VALUES_BYTES) {
         throw new AppError('VALIDATION_ERROR', 'Record input exceeds the 1 MiB limit');
       }
-      input = fs.readFileSync(valuesFile, 'utf8');
+      input = readBoundedBytes(valuesFile === '-' ? 0 : valuesFile, MAX_VALUES_BYTES, () => {
+        throw new AppError('VALIDATION_ERROR', 'Record input exceeds the 1 MiB limit');
+      }).toString('utf8');
     }
   } catch (error) {
     if (error instanceof AppError) throw error;
@@ -312,14 +314,14 @@ function readFilter(options: ListCommandOptions): unknown {
   try {
     if (options.filter !== undefined) {
       input = options.filter;
-    } else if (options.filterFile === '-') {
-      input = fs.readFileSync(0, 'utf8');
     } else {
       const filterFile = options.filterFile as string;
-      if (fs.statSync(filterFile).size > MAX_FILTER_BYTES) {
+      if (filterFile !== '-' && fs.statSync(filterFile).size > MAX_FILTER_BYTES) {
         throw new AppError('VALIDATION_ERROR', 'Filter input exceeds the 256 KiB limit');
       }
-      input = fs.readFileSync(filterFile, 'utf8');
+      input = readBoundedBytes(filterFile === '-' ? 0 : filterFile, MAX_FILTER_BYTES, () => {
+        throw new AppError('VALIDATION_ERROR', 'Filter input exceeds the 256 KiB limit');
+      }).toString('utf8');
     }
   } catch (error) {
     if (error instanceof AppError) throw error;

@@ -66,6 +66,30 @@ describe('Agent Skill integration', () => {
     }
   });
 
+  it.skipIf(process.platform === 'win32')(
+    'refuses to follow a symlinked skill directory during uninstall',
+    () => {
+      const directory = temporaryDirectory();
+      const destination = path.join(directory, 'skills');
+      const targetDirectory = path.join(destination, 'agentcrm');
+      const outside = path.join(directory, 'outside');
+      const outsideSkill = path.join(outside, 'SKILL.md');
+      fs.mkdirSync(destination);
+      fs.mkdirSync(outside);
+      fs.writeFileSync(outsideSkill, 'must not be removed');
+      fs.symlinkSync(outside, targetDirectory, 'dir');
+
+      try {
+        expect(() => uninstallSkill({ destination, force: true })).toThrowError(
+          expect.objectContaining({ code: 'INTEGRATION_CONFLICT' }),
+        );
+        expect(fs.readFileSync(outsideSkill, 'utf8')).toBe('must not be removed');
+      } finally {
+        fs.rmSync(directory, { recursive: true, force: true });
+      }
+    },
+  );
+
   it('ships standards-compatible skill frontmatter and required workflow guidance', () => {
     const content = fs.readFileSync(path.resolve('skills/agentcrm/SKILL.md'), 'utf8');
     const frontmatter = /^---\n([\s\S]*?)\n---\n/.exec(content)?.[1] ?? '';

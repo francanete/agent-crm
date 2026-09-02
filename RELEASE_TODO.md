@@ -125,14 +125,14 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 
 ## Security and privacy review
 
-- [ ] Review all file reads/writes and overwrite protections
-- [ ] Reconfirm database and export permissions on POSIX systems
-- [ ] Reconfirm parameterized SQL and validated JSON paths/identifiers
-- [ ] Reconfirm import size/row limits and transactional rollback
-- [ ] Reconfirm archived records cannot be silently reactivated by upsert/CSV
-- [ ] Reconfirm skill installation cannot overwrite local modifications without `--force`
-- [ ] Search the repository and package tarball for secrets, personal test data, absolute developer paths, and accidental databases
-- [ ] Verify no runtime feature requires network access
+- [x] Review all file reads/writes and overwrite protections; harden Skill uninstall and forced-export replacement
+- [x] Reconfirm database, WAL, SHM, and export permissions on POSIX systems, including under `umask 000`
+- [x] Reconfirm parameterized SQL and validated JSON paths/identifiers; require UUIDs in native imports
+- [x] Reconfirm import size/row limits and transactional rollback; bound descriptor/stdin reads to limit plus one byte
+- [x] Reconfirm archived records cannot be silently reactivated by upsert/CSV
+- [x] Reconfirm Skill installation cannot overwrite local modifications without `--force` and uninstall cannot follow a symlinked Skill directory
+- [x] Search the repository and packed tarball for secrets, personal test data, absolute developer paths, and accidental databases
+- [x] Verify runtime source contains no network APIs or network-dependent feature
 - [x] Document that future remote MCP gateways are opt-in and change the local-only threat model
 
 ## Release candidate procedure

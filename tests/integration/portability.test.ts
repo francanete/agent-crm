@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createExport,
   dryRunImport,
@@ -147,6 +147,33 @@ describe('native export and import', () => {
     }
   });
 
+  it('preserves an existing forced-export target when final replacement fails', () => {
+    const directory = temporaryDirectory();
+    const databasePath = path.join(directory, 'crm.db');
+    const output = path.join(directory, 'backup.json');
+    initializeDatabase(databasePath);
+    const database = openDatabase(databasePath);
+    fs.writeFileSync(output, 'previous backup');
+    const rename = fs.renameSync.bind(fs);
+    let renameCalls = 0;
+    const renameSpy = vi.spyOn(fs, 'renameSync').mockImplementation((source, target) => {
+      renameCalls += 1;
+      if (renameCalls === 2) throw new Error('simulated final rename failure');
+      return rename(source, target);
+    });
+
+    try {
+      expect(() => writeExportFile(output, createExport(database), true)).toThrowError(
+        expect.objectContaining({ code: 'DATABASE_ERROR' }),
+      );
+      expect(fs.readFileSync(output, 'utf8')).toBe('previous backup');
+      expect(fs.readdirSync(directory).filter((file) => file.includes('.previous'))).toEqual([]);
+    } finally {
+      renameSpy.mockRestore();
+      database.close();
+    }
+  });
+
   it('rejects invalid documents and non-pristine targets before mutation', () => {
     const directory = temporaryDirectory();
     const sourcePath = path.join(directory, 'source.db');
@@ -168,6 +195,15 @@ describe('native export and import', () => {
       ).toThrowError(expect.objectContaining({ code: 'IMPORT_TARGET_NOT_EMPTY' }));
 
       fs.writeFileSync(invalidPath, '{"format":"unknown"}');
+      expect(() => readExportFile(invalidPath)).toThrowError(
+        expect.objectContaining({ code: 'IMPORT_INVALID' }),
+      );
+
+      const malformedIdDocument = structuredClone(document);
+      const malformedObject = malformedIdDocument.data.objects[0];
+      if (!malformedObject) throw new Error('Expected the default schema in the export');
+      malformedObject.id = 'not-a-uuid';
+      fs.writeFileSync(invalidPath, JSON.stringify(malformedIdDocument));
       expect(() => readExportFile(invalidPath)).toThrowError(
         expect.objectContaining({ code: 'IMPORT_INVALID' }),
       );

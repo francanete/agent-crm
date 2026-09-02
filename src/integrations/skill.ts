@@ -197,6 +197,21 @@ export function uninstallSkill(options: SkillIntegrationOptions = {}): SkillInte
   const force = options.force === true;
 
   try {
+    try {
+      const directoryStat = fs.lstatSync(target.directory);
+      if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) {
+        throw new AppError(
+          'INTEGRATION_CONFLICT',
+          `Skill destination '${target.directory}' is not a regular directory`,
+          { path: target.directory },
+        );
+      }
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+      return { action: 'uninstalled', path: target.skill, changed: false, forced: force };
+    }
+
     let stat: fs.Stats;
     try {
       stat = fs.lstatSync(target.skill);

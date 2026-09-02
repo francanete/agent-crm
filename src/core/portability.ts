@@ -6,6 +6,7 @@ import { z } from 'zod';
 import { CURRENT_DATABASE_VERSION } from '../db/migrations.js';
 import { DEFAULT_SCHEMA } from '../db/seed.js';
 import { inImmediateTransaction } from '../db/transaction.js';
+import { readBoundedBytes } from './bounded-input.js';
 import { canonicalJson, requestHash } from './canonical.js';
 import { AppError } from './errors.js';
 import { findIdempotentReplay } from './idempotency.js';
@@ -19,10 +20,11 @@ export const EXPORT_FORMAT_VERSION = 1;
 export const MAX_IMPORT_BYTES = 100 * 1024 * 1024;
 
 const nullableString = z.string().nullable();
+const idSchema = z.string().uuid();
 const fieldSchema = z
   .object({
-    id: z.string().min(1),
-    objectTypeId: z.string().min(1),
+    id: idSchema,
+    objectTypeId: idSchema,
     key: z.string().regex(/^[a-z][a-z0-9_]*$/),
     label: z.string().min(1),
     description: nullableString,
@@ -40,7 +42,7 @@ const fieldSchema = z
   .strict();
 const objectSchema = z
   .object({
-    id: z.string().min(1),
+    id: idSchema,
     key: z.string().regex(/^[a-z][a-z0-9_]*$/),
     label: z.string().min(1),
     pluralLabel: z.string().min(1),
@@ -56,7 +58,7 @@ const objectSchema = z
   .strict();
 const recordSchema = z
   .object({
-    id: z.string().min(1),
+    id: idSchema,
     object: z.string().min(1),
     displayName: z.string(),
     values: z.record(z.string(), z.unknown()),
@@ -68,9 +70,9 @@ const recordSchema = z
   .strict();
 const relationshipSchema = z
   .object({
-    id: z.string().min(1),
-    sourceRecordId: z.string().min(1),
-    targetRecordId: z.string().min(1),
+    id: idSchema,
+    sourceRecordId: idSchema,
+    targetRecordId: idSchema,
     type: z.string().regex(/^[a-z][a-z0-9_]*$/),
     properties: z.record(z.string(), z.unknown()),
     createdAt: z.string().min(1),
@@ -80,9 +82,9 @@ const relationshipSchema = z
   .strict();
 const eventSchema = z
   .object({
-    id: z.string().min(1),
+    id: idSchema,
     subjectType: z.string().min(1),
-    subjectId: z.string().min(1),
+    subjectId: idSchema,
     action: z.string().min(1),
     actor: z.string().min(1),
     source: nullableString,
@@ -305,19 +307,48 @@ export function writeExportFile(
     path.dirname(output),
     `.${path.basename(output)}.${randomUUID()}.tmp`,
   );
+  const backup = path.join(
+    path.dirname(output),
+    `.${path.basename(output)}.${randomUUID()}.previous`,
+  );
+  let movedExisting = false;
+  let installedNew = false;
   try {
     fs.writeFileSync(temporary, content, { mode: 0o600, flag: 'wx' });
-    if (exists) fs.unlinkSync(output);
+    if (exists) {
+      fs.renameSync(output, backup);
+      movedExisting = true;
+    }
     fs.renameSync(temporary, output);
+    installedNew = true;
     if (process.platform !== 'win32') fs.chmodSync(output, 0o600);
+    if (movedExisting) fs.unlinkSync(backup);
   } catch (error) {
+    let recoveryPath: string | undefined;
+    if (installedNew) {
+      try {
+        fs.unlinkSync(output);
+      } catch {
+        // Continue attempting to restore the previous export.
+      }
+    }
+    if (movedExisting) {
+      try {
+        fs.renameSync(backup, output);
+      } catch {
+        recoveryPath = backup;
+      }
+    }
     try {
       fs.unlinkSync(temporary);
     } catch {
       // Preserve the original filesystem error.
     }
     if (error instanceof AppError) throw error;
-    throw new AppError('DATABASE_ERROR', 'Could not write the export file', { output });
+    throw new AppError('DATABASE_ERROR', 'Could not write the export file', {
+      output,
+      ...(recoveryPath ? { recoveryPath } : {}),
+    });
   }
   return { output, bytes: Buffer.byteLength(content) };
 }
@@ -335,7 +366,12 @@ export function readExportFile(inputPath: string): ExportDocument {
         maximumBytes: MAX_IMPORT_BYTES,
       });
     }
-    text = fs.readFileSync(input, 'utf8');
+    text = readBoundedBytes(input, MAX_IMPORT_BYTES, () => {
+      invalidImport('Import exceeds the 100 MiB limit', {
+        input,
+        maximumBytes: MAX_IMPORT_BYTES,
+      });
+    }).toString('utf8');
   } catch (error) {
     if (error instanceof AppError) throw error;
     throw new AppError('IMPORT_INVALID', 'Could not read the import file', { input });

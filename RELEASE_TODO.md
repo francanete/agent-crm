@@ -49,7 +49,7 @@ Explicitly out of scope for `0.1.0`:
 - [x] Confirm `license` is `MIT` and matches `LICENSE`
 - [x] Use manual npm publication with 2FA for `0.1.0`; configure trusted publishing/provenance for later releases
 - [x] Confirm npm account 2FA is enabled in `auth-and-writes` mode and the account email is verified
-- [ ] Recheck package-name availability immediately before publish
+- [x] Recheck package-name availability immediately before publish; registry returned `E404` before the successful claim
 - [x] Package contents are constrained by the `files` allowlist
 - [x] Built CLI has a Node shebang and executable package bin entry
 - [x] Runtime requires Node.js 24 or newer
@@ -149,28 +149,28 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 - [x] Inspect tarball contents with `npm pack --dry-run` and the packed-archive secret/path scan
 - [x] Install the tarball in isolated Node environments through the package smoke test
 - [x] Run the packaged end-to-end and direct-agent acceptance tests
-- [x] Confirm all GitHub Actions jobs pass on exact release commit `6d9bc0f`: [workflow 33630146330](https://github.com/francanete/agent-crm/actions/runs/33630146330)
+- [x] Confirm all GitHub Actions jobs pass on exact release commit `ec398da`: [workflow 33634386598](https://github.com/francanete/agent-crm/actions/runs/33634386598)
 - [x] Review `git diff`, `git status`, package metadata, and GitHub-release-notes changelog plan
-- [ ] Tag the exact commit as `v0.1.0`
-- [ ] Publish with the chosen npm publication/provenance process
-- [ ] Create a GitHub release from `v0.1.0` with changelog and install instructions
+- [x] Tag exact commit `ec398da` as `v0.1.0` and push the annotated tag
+- [x] Publish `agent-crm@0.1.0` manually to npm with account 2FA; do not claim provenance for this release
+- [x] Create [GitHub release `v0.1.0`](https://github.com/francanete/agent-crm/releases/tag/v0.1.0) with changelog and install instructions
 
 ## Post-release verification
 
-- [ ] Install `agent-crm@0.1.0` from npm in a clean environment
-- [ ] Verify `agentcrm --version` reports `0.1.0`
-- [ ] Install the bundled Agent Skill and start a fresh agent session
-- [ ] Run init/create/search/export smoke tests against a temporary database
-- [ ] Verify npm package and GitHub release links
-- [ ] Verify uninstall preserves the test database
-- [ ] Record known issues and open follow-up tickets
+- [x] Install `agent-crm@0.1.0` from npm in an isolated clean prefix
+- [x] Verify `agentcrm --version` reports `0.1.0`
+- [x] Refresh bundled Pi and Hermes Skills from the published package; the published checksum matches the package used in fresh-session acceptance tests
+- [x] Run init/create/search/export/doctor smoke tests against a temporary database
+- [x] Verify [npm package](https://www.npmjs.com/package/agent-crm/v/0.1.0) and [GitHub release](https://github.com/francanete/agent-crm/releases/tag/v0.1.0) links
+- [x] Verify npm and Skill uninstall preserve the test database, then reinstall and pass `doctor`
+- [x] Record no known release-blocking issues; no follow-up ticket is required at publication
 
 ## Release gate
 
 Publish only when:
 
-- [ ] Every P0 item is complete
-- [x] Linux, macOS, and Windows CI pass on release commit `6d9bc0f`
+- [x] Every P0 item is complete
+- [x] Linux, macOS, and Windows CI pass on release commit `ec398da`
 - [x] Clean packaged installation passes
 - [x] Pi and Hermes/Telegram agent acceptance tests pass
 - [x] Documentation and security review are complete

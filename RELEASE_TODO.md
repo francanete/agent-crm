@@ -110,7 +110,8 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 - [x] Add `docs/architecture.md`
 - [x] Add `docs/privacy-security.md`, covering local storage, permissions, agent/model trust, backups, retention, and optional future network adapters
 - [x] Add `CONTRIBUTING.md`
-- [ ] Add `SECURITY.md` with a private vulnerability-reporting path
+- [x] Add `SECURITY.md` with a GitHub private vulnerability-reporting path
+- [ ] Enable GitHub private vulnerability reporting in repository security settings and verify the form
 - [ ] Add `CHANGELOG.md` with the `0.1.0` feature set and experimental compatibility warning
 - [ ] Add a concise CLI command reference or ensure every command is discoverable from README/help
 - [ ] Document database location precedence (`--db`, `AGENTCRM_DB`, platform default)

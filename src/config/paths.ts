@@ -1,10 +1,10 @@
 import os from 'node:os';
 import path from 'node:path';
 
-function expandHome(value: string): string {
-  if (value === '~') return os.homedir();
+function expandHome(value: string, home: string = os.homedir()): string {
+  if (value === '~') return home;
   if (value.startsWith('~/') || value.startsWith('~\\')) {
-    return path.join(os.homedir(), value.slice(2));
+    return path.join(home, value.slice(2));
   }
   return value;
 }
@@ -12,9 +12,8 @@ function expandHome(value: string): string {
 export function defaultDatabasePath(
   platform: NodeJS.Platform = process.platform,
   env: NodeJS.ProcessEnv = process.env,
+  home: string = os.homedir(),
 ): string {
-  const home = os.homedir();
-
   if (platform === 'darwin') {
     return path.join(home, 'Library', 'Application Support', 'agentcrm', 'crm.db');
   }
@@ -31,7 +30,9 @@ export function defaultDatabasePath(
 export function resolveDatabasePath(
   override?: string,
   env: NodeJS.ProcessEnv = process.env,
+  platform: NodeJS.Platform = process.platform,
+  home: string = os.homedir(),
 ): string {
-  const selected = override ?? env.AGENTCRM_DB ?? defaultDatabasePath(process.platform, env);
-  return path.resolve(expandHome(selected));
+  const selected = override ?? env.AGENTCRM_DB ?? defaultDatabasePath(platform, env, home);
+  return path.resolve(expandHome(selected, home));
 }

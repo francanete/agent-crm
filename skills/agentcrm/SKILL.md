@@ -14,19 +14,21 @@ Use `agentcrm` as durable, structured relationship memory. The CLI is local and 
 ## Operating rules
 
 1. Use `--json` for every machine invocation and inspect `ok`, `data`, and `error`.
-2. If setup is uncertain, run `agentcrm doctor --json`. Do not run `init` unless the user asks to set up CRM storage.
-3. Run `agentcrm schema show [object] --json` before using unfamiliar fields.
-4. Search before creating a person or organization. Inspect likely matches by stable ID; do not merge people based only on similar names.
-5. Never guess facts, IDs, field names, or dates. Ask when semantic ambiguity affects stored data. For relationships, ask about the real-world meaning in plain language—never ask the user to invent or choose an internal relationship-type identifier.
-6. When the user's wording already makes a relationship clear (for example, “a subscription for Pepito”), link the records without an extra technical confirmation and choose a concise deterministic `snake_case` type internally.
-7. Ask before changing schema unless the user explicitly requested that change.
-8. Use IDs returned by the CLI for updates and relationships. Prefixes must be at least eight characters and unambiguous.
-9. Add `--idempotency-key <key>` to retried mutations. Reuse a key only for the exact same normalized intent and values.
-10. Use `context` before meeting preparation or relationship-sensitive follow-up.
-11. Archive rather than delete. Confirm destructive-sounding requests, then use the explicit archive command so history and restoration remain available.
-12. Do not edit the SQLite database directly. Do not delete or replace CRM data to resolve an error.
-13. Treat CLI JSON envelopes as private tool output. Never reproduce raw JSON to the user unless they explicitly request JSON or debugging details; present the result naturally using the current channel's capabilities.
-14. Report successful mutations concisely, including what was stored and any follow-up date.
+2. If setup is uncertain, run `agentcrm doctor --json`. On `DATABASE_NOT_INITIALIZED`, explain that Agent CRM uses one local unencrypted SQLite database at the selected path and ask whether the user wants to initialize it. Only after explicit consent, run `agentcrm init --json` and then `agentcrm doctor --json`.
+3. Never run `agentcrm setup`, `agentcrm setup apply`, host detection, Skill installation/removal, `--all-detected`, or `--force-skill` from an ordinary agent conversation. Those commands administer the local machine's agent hosts and require the local OS administrator in a trusted terminal context.
+4. On a shared gateway or messaging channel, do not imply that Agent CRM separates data by chat identity. It uses the one selected local database unless a future administrator-configured profile mapping says otherwise.
+5. Run `agentcrm schema show [object] --json` before using unfamiliar fields.
+6. Search before creating a person or organization. Inspect likely matches by stable ID; do not merge people based only on similar names.
+7. Never guess facts, IDs, field names, or dates. Ask when semantic ambiguity affects stored data. For relationships, ask about the real-world meaning in plain language—never ask the user to invent or choose an internal relationship-type identifier.
+8. When the user's wording already makes a relationship clear (for example, “a subscription for Pepito”), link the records without an extra technical confirmation and choose a concise deterministic `snake_case` type internally.
+9. Ask before changing schema unless the user explicitly requested that change.
+10. Use IDs returned by the CLI for updates and relationships. Prefixes must be at least eight characters and unambiguous.
+11. Add `--idempotency-key <key>` to retried mutations. Reuse a key only for the exact same normalized intent and values.
+12. Use `context` before meeting preparation or relationship-sensitive follow-up.
+13. Archive rather than delete. Confirm destructive-sounding requests, then use the explicit archive command so history and restoration remain available.
+14. Do not edit the SQLite database directly. Do not delete or replace CRM data to resolve an error.
+15. Treat CLI JSON envelopes as private tool output. Never reproduce raw JSON to the user unless they explicitly request JSON or debugging details; present the result naturally using the current channel's capabilities.
+16. Report successful mutations concisely, including what was stored and any follow-up date.
 
 Respect `AGENTCRM_DB` or a user-provided `--db`; otherwise allow the CLI to use its platform default. Put global options before the command for portability:
 

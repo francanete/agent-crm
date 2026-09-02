@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import type { DatabaseSync } from 'node:sqlite';
 import { Command, CommanderError, InvalidArgumentError, Option } from 'commander';
 import packageMetadata from '../../package.json' with { type: 'json' };
@@ -45,6 +46,7 @@ import {
 import { searchRecords } from '../core/search.js';
 import type { FieldFormat, FieldType } from '../core/types.js';
 import { initializeDatabase, openDatabase, openReadOnlyDatabase } from '../db/index.js';
+import { applySetup, createSetupPlan } from '../integrations/setup.js';
 import { installSkill, uninstallSkill } from '../integrations/skill.js';
 import { errorEnvelope, successEnvelope } from '../output/envelope.js';
 
@@ -120,6 +122,15 @@ interface CsvImportCommandOptions {
 interface SkillCommandOptions {
   destination?: string;
   force: boolean;
+}
+
+interface SetupApplyCommandOptions {
+  initialize: boolean;
+  agent: string[];
+  allDetected: boolean;
+  noSkill: boolean;
+  forceSkill: boolean;
+  yes: boolean;
 }
 
 interface ContextCommandOptions {
@@ -361,6 +372,140 @@ function withReadOnlyDatabase<T>(
   }
 }
 
+function askYesNo(question: string, defaultValue: boolean): Promise<boolean> {
+  const readline = createInterface({ input: process.stdin, output: process.stderr });
+  const suffix = defaultValue ? ' [Y/n] ' : ' [y/N] ';
+  return readline
+    .question(`${question}${suffix}`)
+    .then((answer) => {
+      const normalized = answer.trim().toLowerCase();
+      if (normalized === '') return defaultValue;
+      return normalized === 'y' || normalized === 'yes';
+    })
+    .finally(() => readline.close());
+}
+
+function selectedInteractiveHosts(
+  available: Array<{ key: string; displayName: string; destination: string }>,
+): Promise<string[]> {
+  const readline = createInterface({ input: process.stdin, output: process.stderr });
+  const defaults = available.map((host) => host.key).join(', ');
+  return readline
+    .question(`Hosts to enable [${defaults}; enter to keep, none to skip]: `)
+    .then((answer) => {
+      const normalized = answer.trim();
+      if (normalized === '') return available.map((host) => host.key);
+      if (normalized.toLowerCase() === 'none') return [];
+      const selected = normalized
+        .split(',')
+        .map((value) => value.trim())
+        .filter(Boolean);
+      const allowed = new Set(available.map((host) => host.key));
+      const invalid = selected.filter((key) => !allowed.has(key));
+      if (invalid.length > 0) {
+        throw new AppError(
+          'VALIDATION_ERROR',
+          `Unknown detected host selection: ${invalid.join(', ')}`,
+          {
+            allowedHosts: available.map((host) => host.key),
+          },
+        );
+      }
+      return [...new Set(selected)];
+    })
+    .finally(() => readline.close());
+}
+
+async function runInteractiveSetup(globals: GlobalOptions): Promise<void> {
+  if (
+    process.stdin.isTTY !== true ||
+    process.stdout.isTTY !== true ||
+    process.stderr.isTTY !== true
+  ) {
+    throw new AppError(
+      'SETUP_INTERACTIVE_TTY_REQUIRED',
+      'Interactive setup requires a terminal; use `agentcrm setup plan --json` and `agentcrm setup apply` instead',
+    );
+  }
+  const plan = createSetupPlan(globals.db === undefined ? {} : { databaseOverride: globals.db });
+  if (plan.database.state !== 'absent' && plan.database.state !== 'agentcrm-ready') {
+    throw new AppError(
+      'SETUP_DATABASE_CONFLICT',
+      'The selected database cannot be initialized safely',
+      {
+        database: plan.database.path,
+        state: plan.database.state,
+      },
+    );
+  }
+
+  process.stdout.write(
+    `Agent CRM stores relationship data locally in SQLite.\nDatabase: ${plan.database.path}\n${plan.database.privacyNotice}\n`,
+  );
+  const initialize =
+    plan.database.state === 'absent'
+      ? await askYesNo('Create your primary local CRM?', false)
+      : false;
+  if (plan.database.state === 'absent' && !initialize) {
+    process.stdout.write('Setup cancelled. No files were changed.\n');
+    return;
+  }
+
+  const available = plan.hosts.filter((host) => host.detection === 'detected');
+  if (available.length === 0) {
+    process.stdout.write('No supported agent host was detected.\n');
+  } else {
+    process.stdout.write('\nDetected agent hosts:\n');
+    for (const host of available) {
+      process.stdout.write(`  - ${host.displayName} (${host.key}): ${host.destination}\n`);
+      if (host.sharedGatewayWarning)
+        process.stdout.write(`    Warning: ${host.sharedGatewayWarning}\n`);
+    }
+  }
+  const agents = available.length === 0 ? [] : await selectedInteractiveHosts(available);
+  const selected = available.filter((host) => agents.includes(host.key));
+  if (!initialize && selected.length === 0) {
+    process.stdout.write('No setup actions were selected. No files were changed.\n');
+    return;
+  }
+
+  process.stdout.write('\nSetup will:\n');
+  process.stdout.write(
+    initialize
+      ? `  - Create the CRM database at ${plan.database.path}\n`
+      : `  - Keep the existing CRM database at ${plan.database.path}\n`,
+  );
+  for (const host of selected) {
+    process.stdout.write(`  - Install the Skill for ${host.displayName} at ${host.destination}\n`);
+  }
+  if (selected.length === 0) process.stdout.write('  - Install no Agent Skills\n');
+  if (!(await askYesNo('Apply these actions?', false))) {
+    process.stdout.write('Setup cancelled. No files were changed.\n');
+    return;
+  }
+
+  const result = applySetup({
+    ...(globals.db === undefined ? {} : { databaseOverride: globals.db }),
+    initialize,
+    agents,
+    noSkill: agents.length === 0,
+    yes: true,
+  });
+  if (result.database.action === 'initialized') process.stdout.write('Created the CRM database.\n');
+  for (const installation of result.skillInstallations) {
+    process.stdout.write(
+      `${installation.changed ? 'Installed' : 'Kept'} the Skill for ${installation.hosts.join(', ')}.\n`,
+    );
+  }
+  if (result.nextSteps.length > 0) {
+    process.stdout.write('\nNext steps:\n');
+    for (const nextStep of result.nextSteps) {
+      process.stdout.write(`  - ${nextStep.action}\n`);
+    }
+  }
+  process.stdout.write('Run `agentcrm doctor` to inspect the CRM database.\n');
+}
+
 function mutationOptions(globals: GlobalOptions) {
   return {
     actor: resolveActor(globals.actor),
@@ -408,6 +553,45 @@ export function buildProgram(): Command {
         })),
       );
       writeSuccess({ ...initialization, objects }, databasePath, globals);
+    });
+
+  const setup = program
+    .command('setup')
+    .description('plan and apply local database and Agent Skill setup')
+    .action(async () => {
+      await runInteractiveSetup(program.opts<GlobalOptions>());
+    });
+  setup
+    .command('plan')
+    .description('inspect setup targets without modifying the filesystem')
+    .action(() => {
+      const globals = program.opts<GlobalOptions>();
+      const plan = createSetupPlan(
+        globals.db === undefined ? {} : { databaseOverride: globals.db },
+      );
+      writeSuccess(plan, undefined, globals);
+    });
+  setup
+    .command('apply')
+    .description('apply explicitly selected setup actions without prompting')
+    .option('--initialize', 'initialize or upgrade the selected database', false)
+    .option('--agent <host>', 'install the Skill for a host (repeatable)', collect, [])
+    .option('--all-detected', 'install Skills for all detected verified hosts', false)
+    .option('--no-skill', 'perform database initialization only', false)
+    .option('--force-skill', 'replace a selected locally modified Skill', false)
+    .option('--yes', 'confirm the explicitly selected actions', false)
+    .action((commandOptions: SetupApplyCommandOptions) => {
+      const globals = program.opts<GlobalOptions>();
+      const result = applySetup({
+        ...(globals.db === undefined ? {} : { databaseOverride: globals.db }),
+        initialize: commandOptions.initialize,
+        agents: commandOptions.agent,
+        allDetected: commandOptions.allDetected,
+        noSkill: commandOptions.noSkill,
+        forceSkill: commandOptions.forceSkill,
+        yes: commandOptions.yes,
+      });
+      writeSuccess(result, resolveDatabasePath(globals.db), globals);
     });
 
   program

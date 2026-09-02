@@ -29,6 +29,23 @@ export interface SkillIntegrationResult {
   forced: boolean;
 }
 
+export type SkillState =
+  | 'absent'
+  | 'managed-current'
+  | 'managed-outdated'
+  | 'locally-modified'
+  | 'unowned'
+  | 'unsafe-target'
+  | 'unreadable';
+
+export interface SkillInspection {
+  root: string;
+  directory: string;
+  skill: string;
+  manifest: string;
+  state: SkillState;
+}
+
 function expandHome(value: string): string {
   if (value === '~') return os.homedir();
   if (value.startsWith('~/') || value.startsWith('~\\')) {
@@ -110,7 +127,23 @@ function atomicWrite(file: string, content: Buffer | string, mode: number): void
 }
 
 function ensureSafeTargetDirectory(root: string, directory: string): void {
-  fs.mkdirSync(root, { recursive: true, mode: 0o755 });
+  try {
+    const rootStat = fs.lstatSync(root);
+    if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+      throw new AppError(
+        'INTEGRATION_CONFLICT',
+        `Skill root '${root}' is not a regular directory`,
+        {
+          path: root,
+        },
+      );
+    }
+  } catch (error) {
+    if (error instanceof AppError) throw error;
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    fs.mkdirSync(root, { recursive: true, mode: 0o755 });
+  }
+
   try {
     const stat = fs.lstatSync(directory);
     if (!stat.isDirectory() || stat.isSymbolicLink()) {
@@ -125,6 +158,68 @@ function ensureSafeTargetDirectory(root: string, directory: string): void {
     const code = (error as NodeJS.ErrnoException).code;
     if (code !== 'ENOENT') throw error;
     fs.mkdirSync(directory, { mode: 0o755 });
+  }
+}
+
+export function inspectSkill(options: SkillIntegrationOptions = {}): SkillInspection {
+  const target = targetPaths(options.destination);
+  const source = options.sourcePath ?? bundledSkillPath();
+  const sourceHash = hash(fs.readFileSync(source));
+
+  let rootStat: fs.Stats;
+  try {
+    rootStat = fs.lstatSync(target.root);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { ...target, state: 'absent' };
+    }
+    return { ...target, state: 'unreadable' };
+  }
+  if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
+    return { ...target, state: 'unsafe-target' };
+  }
+
+  let directoryStat: fs.Stats;
+  try {
+    directoryStat = fs.lstatSync(target.directory);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { ...target, state: 'absent' };
+    }
+    return { ...target, state: 'unreadable' };
+  }
+  if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) {
+    return { ...target, state: 'unsafe-target' };
+  }
+
+  let skillStat: fs.Stats;
+  try {
+    skillStat = fs.lstatSync(target.skill);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return { ...target, state: 'absent' };
+    }
+    return { ...target, state: 'unreadable' };
+  }
+  if (skillStat.isSymbolicLink() || !skillStat.isFile()) {
+    return { ...target, state: 'unsafe-target' };
+  }
+
+  try {
+    const existingHash = hash(fs.readFileSync(target.skill));
+    const managedHash = readManagedHash(target.manifest);
+    if (existingHash === sourceHash && managedHash === sourceHash) {
+      return { ...target, state: 'managed-current' };
+    }
+    if (managedHash !== undefined && existingHash === managedHash) {
+      return { ...target, state: 'managed-outdated' };
+    }
+    return {
+      ...target,
+      state: managedHash === undefined ? 'unowned' : 'locally-modified',
+    };
+  } catch {
+    return { ...target, state: 'unreadable' };
   }
 }
 

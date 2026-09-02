@@ -68,7 +68,7 @@ Run every item against the final release candidate commit:
 - [x] Add a clean-tarball installation smoke test to CI
 - [x] Test the packaged `agentcrm --version` and `agentcrm --help`
 - [x] Test init/create/search/context/export/import using only the packaged binary
-- [ ] Test skill install, upgrade, conflict protection, and uninstall using only the packaged binary
+- [x] Test Skill install, idempotent reinstall, managed upgrade, conflict protection, forced uninstall, and data retention using only the packaged binary
 - [x] Verify CLI and skill uninstall leave the SQLite database untouched
 - [x] Verify a representative database created by initial commit `2630126` opens unchanged after an in-place package upgrade to `0.1.0`
   - Compared complete native exports except `exportedAt`; IDs, schema, values, relationships, archived data, FTS search, and immutable history were preserved

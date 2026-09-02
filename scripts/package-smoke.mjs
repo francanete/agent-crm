@@ -121,6 +121,22 @@ try {
   );
   assert.equal(repeatedSkillInstall.data.changed, false);
 
+  const packagedSkillPath = path.join(
+    installDirectory,
+    'node_modules',
+    'agent-crm',
+    'skills',
+    'agentcrm',
+    'SKILL.md',
+  );
+  const simulatedUpgradeMarker = '<!-- simulated package upgrade -->';
+  fs.appendFileSync(packagedSkillPath, `\n${simulatedUpgradeMarker}\n`);
+  const upgradedSkillInstall = JSON.parse(
+    runCli(['integration', 'install-skill', '--destination', skillDestination, '--json']),
+  );
+  assert.equal(upgradedSkillInstall.data.changed, true);
+  assert.match(fs.readFileSync(skillPath, 'utf8'), new RegExp(simulatedUpgradeMarker));
+
   fs.appendFileSync(skillPath, '\nlocal package-smoke customization\n');
   assert.throws(
     () => runCli(['integration', 'uninstall-skill', '--destination', skillDestination, '--json']),

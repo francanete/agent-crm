@@ -111,12 +111,12 @@ Do not claim Codex, Claude Code, or Hermes skill discovery as verified until eac
 - [x] Add `docs/privacy-security.md`, covering local storage, permissions, agent/model trust, backups, retention, and optional future network adapters
 - [x] Add `CONTRIBUTING.md`
 - [x] Add `SECURITY.md` with a GitHub private vulnerability-reporting path
-- [ ] Enable GitHub private vulnerability reporting in repository security settings and verify the form
-- [ ] Add `CHANGELOG.md` with the `0.1.0` feature set and experimental compatibility warning
-- [ ] Add a concise CLI command reference or ensure every command is discoverable from README/help
-- [ ] Document database location precedence (`--db`, `AGENTCRM_DB`, platform default)
-- [ ] Document clean install, update, skill install, skill update, and uninstall
-- [ ] Document that npm/skill uninstall never removes CRM data
+- [x] Enable GitHub private vulnerability reporting in repository security settings and verify the form
+- [x] Skip a standalone changelog for the initial `0.1.0`; use GitHub release notes
+- [x] Add `docs/cli-reference.md` covering every public command, option, output contract, and exit-status group
+- [x] Document database location precedence (`--db`, `AGENTCRM_DB`, platform default)
+- [x] Document clean install, update, Skill install/refresh, and uninstall
+- [x] Document that npm/Skill uninstall never removes CRM data
 - [x] Document native export/import
 - [x] Document CSV import
 - [x] Record presentation-adapter/A2UI boundary in ADR 0003

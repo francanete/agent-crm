@@ -128,7 +128,7 @@ interface SetupApplyCommandOptions {
   initialize: boolean;
   agent: string[];
   allDetected: boolean;
-  noSkill: boolean;
+  skill: boolean;
   forceSkill: boolean;
   yes: boolean;
 }
@@ -577,7 +577,7 @@ export function buildProgram(): Command {
     .option('--initialize', 'initialize or upgrade the selected database', false)
     .option('--agent <host>', 'install the Skill for a host (repeatable)', collect, [])
     .option('--all-detected', 'install Skills for all detected verified hosts', false)
-    .option('--no-skill', 'perform database initialization only', false)
+    .option('--no-skill', 'perform database initialization only')
     .option('--force-skill', 'replace a selected locally modified Skill', false)
     .option('--yes', 'confirm the explicitly selected actions', false)
     .action((commandOptions: SetupApplyCommandOptions) => {
@@ -587,7 +587,7 @@ export function buildProgram(): Command {
         initialize: commandOptions.initialize,
         agents: commandOptions.agent,
         allDetected: commandOptions.allDetected,
-        noSkill: commandOptions.noSkill,
+        noSkill: commandOptions.skill === false,
         forceSkill: commandOptions.forceSkill,
         yes: commandOptions.yes,
       });

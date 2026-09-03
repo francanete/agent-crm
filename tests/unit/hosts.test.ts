@@ -13,38 +13,64 @@ function temporaryDirectory(): string {
 }
 
 describe('host adapters', () => {
-  it('resolves documented skills roots', () => {
-    const home = '/home/agent';
-    const context = hostDetectionContext('linux', {}, home);
+  it('resolves documented skills roots with native paths', () => {
+    const home = path.resolve('agent-home');
+    const context = hostDetectionContext(process.platform, {}, home);
 
-    expect(getHostAdapter('pi')?.skillsRoot(context)).toBe('/home/agent/.agents/skills');
-    expect(getHostAdapter('claude-code')?.skillsRoot(context)).toBe('/home/agent/.claude/skills');
-    expect(getHostAdapter('hermes')?.skillsRoot(context)).toBe('/home/agent/.hermes/skills');
+    expect(getHostAdapter('pi')?.skillsRoot(context)).toBe(path.join(home, '.agents', 'skills'));
+    expect(getHostAdapter('claude-code')?.skillsRoot(context)).toBe(
+      path.join(home, '.claude', 'skills'),
+    );
+    expect(getHostAdapter('hermes')?.skillsRoot(context)).toBe(
+      path.join(home, '.hermes', 'skills'),
+    );
     expect(
       getHostAdapter('claude-code')?.skillsRoot(
         hostDetectionContext(
-          'linux',
+          process.platform,
           {
             CLAUDE_CONFIG_DIR: '~/custom-claude',
           },
           home,
         ),
       ),
-    ).toBe('/home/agent/custom-claude/skills');
+    ).toBe(path.join(home, 'custom-claude', 'skills'));
   });
 
   it('groups hosts sharing a skills destination', () => {
+    const root = path.resolve('host-destinations');
+    const shared = path.join(root, 'shared');
+    const claude = path.join(root, 'claude');
+    const hermes = path.join(root, 'hermes');
+
     expect(
       groupHostDestinations([
-        { key: 'pi', destination: '/tmp/shared' },
-        { key: 'claude-code', destination: '/tmp/claude' },
-        { key: 'hermes', destination: '/tmp/hermes' },
+        { key: 'pi', destination: shared },
+        { key: 'claude-code', destination: claude },
+        { key: 'hermes', destination: hermes },
       ]),
     ).toMatchObject([
-      { destination: '/tmp/shared', hosts: ['pi'] },
-      { destination: '/tmp/claude', hosts: ['claude-code'] },
-      { destination: '/tmp/hermes', hosts: ['hermes'] },
+      { destination: shared, hosts: ['pi'] },
+      { destination: claude, hosts: ['claude-code'] },
+      { destination: hermes, hosts: ['hermes'] },
     ]);
+  });
+
+  it('detects Windows executables using PATHEXT semantics', () => {
+    const directory = temporaryDirectory();
+    const bin = path.join(directory, 'bin');
+    const home = path.join(directory, 'home');
+    fs.mkdirSync(bin);
+    fs.writeFileSync(path.join(bin, 'pi.CMD'), '');
+
+    try {
+      const result = getHostAdapter('pi')?.detect(
+        hostDetectionContext('win32', { PATH: bin, PATHEXT: '.CMD' }, home),
+      );
+      expect(result).toEqual({ state: 'detected', evidence: ['executable-on-path'] });
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it('reports executable and state-directory evidence without searching the home directory', () => {

@@ -208,9 +208,7 @@ Inspect database and host setup:
 agentcrm --db ./crm.db setup plan --json
 ```
 
-The plan reports database state, selection source, local privacy notice, host detection evidence, host Skill state, destination groups, and restart guidance. It creates neither the selected database nor a Skill directory. Host and destination-group `destinationKey` values use the same canonical-path rule.
-
-**Unresolved issue:** planning is intended to make no filesystem changes, but inspecting an existing WAL-mode database can currently create `-wal`/`-shm` sidecars. A readable database in a non-writable directory can also be misclassified. This still needs a separate fix; the read-only guarantee is not yet met.
+The plan reports database state, selection source, local privacy notice, host detection evidence, host Skill state, destination groups, and restart guidance. It creates neither the selected database nor a Skill directory. Existing databases are inspected in immutable read-only mode so WAL sidecar files are not created during planning. Host and destination-group `destinationKey` values use the same canonical-path rule.
 
 ### `setup apply`
 

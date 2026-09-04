@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../../src/db/index.js';
 import { applySetup, createSetupPlan } from '../../src/integrations/setup.js';
@@ -68,6 +69,34 @@ describe('setup plan', () => {
       });
       expect(plan.database).toMatchObject({ state: 'agentcrm-ready', databaseVersion: 1 });
       expect(fs.statSync(database).mtimeMs).toBe(before);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('inspects WAL-mode databases without creating sidecar files', () => {
+    const directory = temporaryDirectory();
+    const database = path.join(directory, 'crm.db');
+    const source = path.join(directory, 'SKILL.md');
+    fs.writeFileSync(source, 'bundled skill');
+    initializeDatabase(database);
+    const writable = new DatabaseSync(database);
+    writable.prepare('PRAGMA journal_mode=WAL').get();
+    writable.close();
+    fs.rmSync(`${database}-wal`, { force: true });
+    fs.rmSync(`${database}-shm`, { force: true });
+
+    try {
+      const plan = createSetupPlan({
+        databaseOverride: database,
+        home: path.join(directory, 'home'),
+        platform: 'linux',
+        env: {},
+        sourcePath: source,
+      });
+      expect(plan.database).toMatchObject({ state: 'agentcrm-ready', databaseVersion: 1 });
+      expect(fs.existsSync(`${database}-wal`)).toBe(false);
+      expect(fs.existsSync(`${database}-shm`)).toBe(false);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

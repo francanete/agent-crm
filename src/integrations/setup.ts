@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { pathToFileURL } from 'node:url';
 import { hasUnsafePathComponent } from '../config/path-safety.js';
 import { resolveDatabasePath } from '../config/paths.js';
 import { AppError } from '../core/errors.js';
@@ -106,7 +107,8 @@ function inspectDatabase(
 
   let database: DatabaseSync;
   try {
-    database = new DatabaseSync(databasePath, { readOnly: true });
+    const databaseUri = `${pathToFileURL(databasePath).href}?mode=ro&immutable=1`;
+    database = new DatabaseSync(databaseUri, { readOnly: true });
   } catch {
     return { path: databasePath, selection, state: 'unreadable' };
   }

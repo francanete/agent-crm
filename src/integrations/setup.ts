@@ -12,7 +12,13 @@ import {
   HOST_ADAPTERS,
   hostDetectionContext,
 } from './hosts.js';
-import { inspectSkill, installSkill, type SkillState } from './skill.js';
+import {
+  inspectSkill,
+  installSkill,
+  type SkillIntegrationOptions,
+  type SkillIntegrationResult,
+  type SkillState,
+} from './skill.js';
 
 export type DatabaseState =
   | 'absent'
@@ -151,6 +157,7 @@ export interface SetupApplyOptions extends SetupPlanOptions {
   noSkill?: boolean;
   forceSkill?: boolean;
   yes?: boolean;
+  skillInstaller?: (options: SkillIntegrationOptions) => SkillIntegrationResult;
 }
 
 export interface SetupApplyResult {
@@ -269,9 +276,10 @@ export function applySetup(options: SetupApplyOptions): SetupApplyResult {
   );
   const skillInstallations: SetupApplyResult['skillInstallations'] = [];
   const failures: Array<Record<string, unknown>> = [];
+  const skillInstaller = options.skillInstaller ?? installSkill;
   for (const group of groups) {
     try {
-      const installation = installSkill({
+      const installation = skillInstaller({
         destination: group.destination,
         force: options.forceSkill === true,
         ...(options.sourcePath === undefined ? {} : { sourcePath: options.sourcePath }),

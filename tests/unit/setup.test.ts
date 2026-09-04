@@ -4,6 +4,11 @@ import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../../src/db/index.js';
 import { applySetup, createSetupPlan } from '../../src/integrations/setup.js';
+import {
+  installSkill,
+  type SkillIntegrationOptions,
+  type SkillIntegrationResult,
+} from '../../src/integrations/skill.js';
 
 function temporaryDirectory(): string {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-setup-'));
@@ -132,6 +137,67 @@ describe('setup plan', () => {
       expect(
         fs.readFileSync(path.join(home, '.claude', 'skills', 'agentcrm', 'SKILL.md'), 'utf8'),
       ).toBe('bundled skill');
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('preserves completed Skill installations after a later failure and retries safely', () => {
+    const directory = temporaryDirectory();
+    const home = path.join(directory, 'home');
+    const database = path.join(directory, 'crm.db');
+    const source = path.join(directory, 'SKILL.md');
+    const claudeRoot = path.join(home, '.claude', 'skills');
+    fs.writeFileSync(source, 'bundled skill');
+    initializeDatabase(database);
+
+    const failingInstaller = (options: SkillIntegrationOptions): SkillIntegrationResult => {
+      if (options.destination === claudeRoot) {
+        throw new Error('simulated Claude Code installation failure');
+      }
+      return installSkill(options);
+    };
+
+    try {
+      let failure: unknown;
+      try {
+        applySetup({
+          databaseOverride: database,
+          home,
+          env: {},
+          sourcePath: source,
+          agents: ['pi', 'claude-code'],
+          skillInstaller: failingInstaller,
+          yes: true,
+        });
+      } catch (error) {
+        failure = error;
+      }
+
+      expect(failure).toMatchObject({
+        code: 'SETUP_PARTIAL_FAILURE',
+        details: {
+          skillInstallations: [expect.objectContaining({ hosts: ['pi'], changed: true })],
+          failures: [expect.objectContaining({ hosts: ['claude-code'] })],
+        },
+      });
+      expect(fs.existsSync(path.join(home, '.agents', 'skills', 'agentcrm', 'SKILL.md'))).toBe(
+        true,
+      );
+      expect(fs.existsSync(path.join(home, '.claude', 'skills', 'agentcrm'))).toBe(false);
+
+      const retried = applySetup({
+        databaseOverride: database,
+        home,
+        env: {},
+        sourcePath: source,
+        agents: ['pi', 'claude-code'],
+        yes: true,
+      });
+      expect(retried.skillInstallations).toEqual([
+        expect.objectContaining({ hosts: ['pi'], action: 'already-current', changed: false }),
+        expect.objectContaining({ hosts: ['claude-code'], action: 'installed', changed: true }),
+      ]);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

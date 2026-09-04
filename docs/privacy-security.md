@@ -237,6 +237,8 @@ The managed installer records a content hash. It refuses to replace or remove an
 
 Review package and Skill changes before upgrading. Install Skills only into intended host directories. `agentcrm setup` is an explicit local-administrator operation: it previews targets, asks before creating a database or writing a Skill, and does not modify hosts during npm installation.
 
+Setup rejects symlinked database and Skill path components, including ancestors and managed manifests. macOS's standard `/tmp`, `/var`, and `/etc` aliases to `/private/...` are permitted. These preflight checks are not protection against another process that can replace paths concurrently; retain control of destination directories.
+
 The setup catalog uses `~/.agents/skills` for Pi, `$CLAUDE_CONFIG_DIR/skills` or `~/.claude/skills` for Claude Code, and `~/.hermes/skills` for Hermes. Setup never edits `PATH`, shell profiles, systemd/launchd services, or gateway configuration, and never restarts a host. A background gateway may have a different `PATH` than the invoking terminal; its administrator must diagnose and correct that environment separately.
 
 A normal agent conversation must not administer Skill destinations. It may ask for consent to initialize its already-selected CRM database, but it must not use chat consent to detect hosts, install Skills, force replacement, or select every agent. Hermes and similar gateways may serve multiple chat identities under one OS user; absent an explicit future identity-to-profile mapping, those identities share the one selected local CRM.

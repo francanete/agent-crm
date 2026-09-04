@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { hasUnsafePathComponent } from '../config/path-safety.js';
 import { resolveDatabasePath } from '../config/paths.js';
 import { AppError } from '../core/errors.js';
 import { type InitializationResult, initializeDatabase } from '../db/database.js';
@@ -11,6 +12,7 @@ import {
   groupHostDestinations,
   HOST_ADAPTERS,
   hostDetectionContext,
+  resolvedDestinationKey,
 } from './hosts.js';
 import {
   inspectSkill,
@@ -87,6 +89,9 @@ function inspectDatabase(
 ): DatabaseInspection {
   let stat: fs.Stats;
   try {
+    if (hasUnsafePathComponent(databasePath)) {
+      return { path: databasePath, selection, state: 'not-a-regular-file' };
+    }
     stat = fs.lstatSync(databasePath);
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
@@ -143,7 +148,7 @@ function inspectHost(
     detection: detection.state,
     evidence: detection.evidence,
     destination,
-    destinationKey: skill.root,
+    destinationKey: resolvedDestinationKey(destination),
     skillState: skill.state,
     restartGuidance: adapter.restartGuidance,
     ...(adapter.sharedGatewayWarning ? { sharedGatewayWarning: adapter.sharedGatewayWarning } : {}),
@@ -259,14 +264,16 @@ export function applySetup(options: SetupApplyOptions): SetupApplyResult {
   }
   validateSelectedDestinations(hosts, options.forceSkill === true);
 
-  const database =
-    options.initialize === true
-      ? {
-          action: 'initialized' as const,
-          path: plan.database.path,
-          initialization: initializeDatabase(plan.database.path),
-        }
-      : { action: 'unchanged' as const, path: plan.database.path };
+  const initialization =
+    options.initialize === true ? initializeDatabase(plan.database.path) : undefined;
+  const database: SetupApplyResult['database'] = {
+    action:
+      initialization && (initialization.created || initialization.migrated || initialization.seeded)
+        ? 'initialized'
+        : 'unchanged',
+    path: plan.database.path,
+    ...(initialization === undefined ? {} : { initialization }),
+  };
 
   const groups = groupHostDestinations(
     hosts.map((host) => ({

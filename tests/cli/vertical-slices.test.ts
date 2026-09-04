@@ -627,6 +627,37 @@ describe('compiled vertical-slice CLI', () => {
           skillInstallations: [{ hosts: ['pi'], action: 'already-current', changed: false }],
         },
       });
+
+      const installedSkill = path.join(home, '.agents', 'skills', 'agentcrm', 'SKILL.md');
+      const bundledContent = fs.readFileSync(installedSkill, 'utf8');
+      fs.appendFileSync(installedSkill, '\nlocal edits');
+      const protectedSkill = spawnSync(
+        process.execPath,
+        [cliPath, '--db', database, 'setup', 'apply', '--agent', 'pi', '--yes', '--json'],
+        { encoding: 'utf8', env: setupEnvironment },
+      );
+      expect(protectedSkill.status).toBe(5);
+      expect(JSON.parse(protectedSkill.stdout)).toMatchObject({
+        error: { code: 'SETUP_DESTINATION_CONFLICT' },
+      });
+      const forcedSkill = spawnSync(
+        process.execPath,
+        [
+          cliPath,
+          '--db',
+          database,
+          'setup',
+          'apply',
+          '--agent',
+          'pi',
+          '--force-skill',
+          '--yes',
+          '--json',
+        ],
+        { encoding: 'utf8', env: setupEnvironment },
+      );
+      expect(forcedSkill.status).toBe(0);
+      expect(fs.readFileSync(installedSkill, 'utf8')).toBe(bundledContent);
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

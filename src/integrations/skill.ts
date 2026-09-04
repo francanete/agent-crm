@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { hasUnsafePathComponent } from '../config/path-safety.js';
 import { AppError } from '../core/errors.js';
 
 const SKILL_NAME = 'agentcrm';
@@ -127,6 +128,11 @@ function atomicWrite(file: string, content: Buffer | string, mode: number): void
 }
 
 function ensureSafeTargetDirectory(root: string, directory: string): void {
+  if (hasUnsafePathComponent(directory)) {
+    throw new AppError('INTEGRATION_CONFLICT', 'Skill destination has an unsafe path component', {
+      path: directory,
+    });
+  }
   try {
     const rootStat = fs.lstatSync(root);
     if (!rootStat.isDirectory() || rootStat.isSymbolicLink()) {
@@ -165,6 +171,19 @@ export function inspectSkill(options: SkillIntegrationOptions = {}): SkillInspec
   const target = targetPaths(options.destination);
   const source = options.sourcePath ?? bundledSkillPath();
   const sourceHash = hash(fs.readFileSync(source));
+
+  try {
+    if (hasUnsafePathComponent(target.skill) || hasUnsafePathComponent(target.manifest)) {
+      return { ...target, state: 'unsafe-target' };
+    }
+    try {
+      if (!fs.lstatSync(target.manifest).isFile()) return { ...target, state: 'unsafe-target' };
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
+  } catch {
+    return { ...target, state: 'unreadable' };
+  }
 
   let rootStat: fs.Stats;
   try {
@@ -231,6 +250,20 @@ export function installSkill(options: SkillIntegrationOptions = {}): SkillIntegr
   try {
     const content = fs.readFileSync(source);
     const sourceHash = hash(content);
+    if (hasUnsafePathComponent(target.manifest)) {
+      throw new AppError('INTEGRATION_CONFLICT', 'Skill manifest has an unsafe path component', {
+        path: target.manifest,
+      });
+    }
+    try {
+      if (!fs.lstatSync(target.manifest).isFile()) {
+        throw new AppError('INTEGRATION_CONFLICT', 'Skill manifest is not a regular file', {
+          path: target.manifest,
+        });
+      }
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
+    }
     ensureSafeTargetDirectory(target.root, target.directory);
 
     let changed = true;

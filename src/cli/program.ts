@@ -418,6 +418,7 @@ function selectedInteractiveHosts(
 
 async function runInteractiveSetup(globals: GlobalOptions): Promise<void> {
   if (
+    globals.json === true ||
     process.stdin.isTTY !== true ||
     process.stdout.isTTY !== true ||
     process.stderr.isTTY !== true
@@ -451,9 +452,11 @@ async function runInteractiveSetup(globals: GlobalOptions): Promise<void> {
     return;
   }
 
-  const available = plan.hosts.filter((host) => host.detection === 'detected');
+  const available = plan.hosts.filter(
+    (host) => host.detection === 'detected' && host.support === 'verified',
+  );
   if (available.length === 0) {
-    process.stdout.write('No supported agent host was detected.\n');
+    process.stdout.write('No verified agent host was detected.\n');
   } else {
     process.stdout.write('\nDetected agent hosts:\n');
     for (const host of available) {
@@ -563,7 +566,7 @@ export function buildProgram(): Command {
     });
   setup
     .command('plan')
-    .description('inspect setup targets without modifying the filesystem')
+    .description('inspect database and host setup targets')
     .action(() => {
       const globals = program.opts<GlobalOptions>();
       const plan = createSetupPlan(

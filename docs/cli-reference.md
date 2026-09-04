@@ -196,19 +196,21 @@ Run guided setup in a trusted local terminal:
 agentcrm setup
 ```
 
-The command is intentionally interactive only when stdin, stdout, and stderr are terminals. It shows the selected database path and local-data notice, asks before creating an absent database, presents detected hosts, allows a comma-separated subset such as `pi, claude-code` (or `none`), then shows a final summary and asks again before writing.
+The command is intentionally interactive only when stdin, stdout, and stderr are terminals. It shows the selected database path and local-data notice, asks before creating an absent database, presents detected verified hosts, allows a comma-separated subset such as `pi, hermes` (or `none`), then shows a final summary and asks again before writing. Candidate hosts require explicit `setup apply --agent <host>` selection.
 
-It does not run from an ordinary agent chat, change shell/service configuration, restart hosts, or install every cataloged host by default. On a pipe or CI command it fails with `SETUP_INTERACTIVE_TTY_REQUIRED`; use plan/apply instead.
+It does not run from an ordinary agent chat, JSON mode, a pipe, or CI command; those uses fail with `SETUP_INTERACTIVE_TTY_REQUIRED`. Use plan/apply instead. It does not change shell/service configuration, restart hosts, or install every cataloged host by default.
 
 ### `setup plan`
 
-Inspect database and host setup without filesystem mutation:
+Inspect database and host setup:
 
 ```bash
 agentcrm --db ./crm.db setup plan --json
 ```
 
-The plan reports database state, selection source, local privacy notice, host detection evidence, host Skill state, destination groups, and restart guidance. It creates neither a database nor a Skill directory.
+The plan reports database state, selection source, local privacy notice, host detection evidence, host Skill state, destination groups, and restart guidance. It creates neither the selected database nor a Skill directory. Host and destination-group `destinationKey` values use the same canonical-path rule.
+
+**Unresolved issue:** planning is intended to make no filesystem changes, but inspecting an existing WAL-mode database can currently create `-wal`/`-shm` sidecars. A readable database in a non-writable directory can also be misclassified. This still needs a separate fix; the read-only guarantee is not yet met.
 
 ### `setup apply`
 
@@ -234,7 +236,7 @@ Options:
 | `--force-skill` | Replace a selected modified Skill after explicit review; does not bypass symlink safety |
 | `--yes` | Confirm only the actions supplied on this command; it does not select hosts implicitly |
 
-An absent database requires both `--initialize` and `--yes`. Apply rejects unsafe database targets, unsafe Skill paths, and unowned or locally modified Skills unless `--force-skill` is explicit. Separate Skill roots are applied independently; an error after one success reports `SETUP_PARTIAL_FAILURE` with completed and failed destinations, and retrying is safe.
+An absent database requires both `--initialize` and `--yes`. Repeating initialization reports `unchanged` when no database creation, migration, or seeding was needed. Apply rejects unsafe database targets, unsafe Skill paths, and unowned or locally modified Skills unless `--force-skill` is explicit. Symlinked path components, including destination ancestors and managed manifests, are rejected even with force. The only symlink exceptions are macOS's standard `/tmp`, `/var`, and `/etc` aliases to their corresponding `/private/...` directories. Use a canonical path instead of a user-created symlink. These checks do not protect against concurrent path replacement by another process with write access. Separate Skill roots are applied independently; an error after one success reports `SETUP_PARTIAL_FAILURE` with completed and failed destinations, and retrying is safe.
 
 Known setup destinations are Pi at `~/.agents/skills`, Claude Code at `$CLAUDE_CONFIG_DIR/skills` or `~/.claude/skills`, and Hermes at `~/.hermes/skills`. Pi and Claude Code require fresh sessions; Hermes needs a fresh session or gateway restart. Setup only reports this guidance and never restarts a process.
 

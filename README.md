@@ -50,7 +50,7 @@ Set up the platform-default database and selected local agent hosts:
 agentcrm setup
 ```
 
-Setup is terminal-only and asks before creating the database or writing any Agent Skill. It shows the selected database path, detects Pi, Claude Code, and Hermes, lets you select hosts individually, and gives session/restart guidance afterward. npm installation itself makes no data or host changes.
+Setup is terminal-only and asks before creating the database or writing any Agent Skill. It shows the selected database path, offers detected verified hosts for selection, and gives session/restart guidance afterward. Candidate hosts remain available only through explicit `setup apply --agent <host>` selection. npm installation itself makes no data or host changes.
 
 For deterministic automation or an agent-guided UI, preview first and then apply only explicit actions:
 

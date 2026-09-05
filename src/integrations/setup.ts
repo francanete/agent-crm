@@ -30,6 +30,7 @@ export type DatabaseState =
   | 'non-agentcrm-file'
   | 'unsupported-version'
   | 'wal-present'
+  | 'journal-present'
   | 'unreadable';
 
 export interface DatabaseInspection {
@@ -107,7 +108,7 @@ function inspectDatabase(
     return { path: databasePath, selection, state: 'not-a-regular-file' };
   }
 
-  // Immutable reads ignore WAL contents; do not report compatibility from an incomplete snapshot.
+  // Immutable reads ignore journal contents; do not report compatibility from an incomplete snapshot.
   try {
     const wal = fs.lstatSync(`${databasePath}-wal`);
     if (!wal.isFile() || wal.size > 0) {
@@ -116,6 +117,35 @@ function inspectDatabase(
         selection,
         state: 'wal-present',
         hint: 'A nonempty or unsafe WAL sidecar is present. Close applications using this database and let SQLite checkpoint it before retrying setup. Do not delete WAL files manually.',
+      };
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      return { path: databasePath, selection, state: 'unreadable' };
+    }
+  }
+
+  try {
+    const journalPath = `${databasePath}-journal`;
+    const journal = fs.lstatSync(journalPath);
+    let isHot = false;
+    if (journal.isFile() && journal.size > 512) {
+      const descriptor = fs.openSync(journalPath, 'r');
+      try {
+        const header = Buffer.alloc(8);
+        isHot =
+          fs.readSync(descriptor, header, 0, header.length, 0) === header.length &&
+          header.equals(Buffer.from([0xd9, 0xd5, 0x05, 0xf9, 0x20, 0xa1, 0x63, 0xd7]));
+      } finally {
+        fs.closeSync(descriptor);
+      }
+    }
+    if (!journal.isFile() || isHot) {
+      return {
+        path: databasePath,
+        selection,
+        state: 'journal-present',
+        hint: 'A hot or unsafe rollback journal is present. Close applications using this database and let SQLite recover it before retrying setup. Do not delete journal files manually.',
       };
     }
   } catch (error) {

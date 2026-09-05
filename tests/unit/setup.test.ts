@@ -1,7 +1,9 @@
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
+import { pathToFileURL } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { initializeDatabase } from '../../src/db/index.js';
 import { applySetup, createSetupPlan } from '../../src/integrations/setup.js';
@@ -148,6 +150,96 @@ describe('setup plan', () => {
       });
     } finally {
       if (writable.isOpen) writable.close();
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('accepts a clean persistent rollback journal', () => {
+    const directory = temporaryDirectory();
+    const database = path.join(directory, 'crm.db');
+    initializeDatabase(database);
+    const writable = new DatabaseSync(database);
+    writable.prepare('PRAGMA journal_mode=PERSIST').get();
+    writable.prepare("UPDATE metadata SET value = '1' WHERE key = 'database_version'").run();
+    writable.close();
+
+    try {
+      const journal = `${database}-journal`;
+      expect(fs.statSync(journal).size).toBeGreaterThan(512);
+      expect(fs.readFileSync(journal).subarray(0, 8)).toEqual(Buffer.alloc(8));
+      const before = fs.readFileSync(journal);
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        expect(createSetupPlan({ databaseOverride: database, env: {} }).database).toMatchObject({
+          state: 'agentcrm-ready',
+          databaseVersion: 1,
+        });
+      }
+      expect(fs.readFileSync(journal)).toEqual(before);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses to inspect metadata covered by a hot rollback journal', () => {
+    const directory = temporaryDirectory();
+    const database = path.join(directory, 'crm.db');
+    const home = path.join(directory, 'home');
+    initializeDatabase(database);
+    const seed = new DatabaseSync(database);
+    seed.exec('CREATE TABLE rollback_journal_filler (value TEXT)');
+    seed.close();
+    const transaction = spawnSync(
+      process.execPath,
+      [
+        '--input-type=module',
+        '-e',
+        `
+          import { DatabaseSync } from 'node:sqlite';
+          const database = new DatabaseSync(${JSON.stringify(database)});
+          database.exec('PRAGMA journal_mode=DELETE; PRAGMA cache_size=1; BEGIN IMMEDIATE');
+          database.prepare("UPDATE metadata SET value = '2' WHERE key = 'database_version'").run();
+          const insert = database.prepare('INSERT INTO rollback_journal_filler VALUES (?)');
+          for (let index = 0; index < 100; index += 1) insert.run('x'.repeat(3000));
+          process.kill(process.pid, 'SIGKILL');
+        `,
+      ],
+      { encoding: 'utf8' },
+    );
+
+    try {
+      expect(
+        transaction.signal === 'SIGKILL' ||
+          (transaction.status !== null && transaction.status !== 0),
+      ).toBe(true);
+      expect(fs.statSync(`${database}-journal`).size).toBeGreaterThan(512);
+      const immutable = new DatabaseSync(`${pathToFileURL(database).href}?mode=ro&immutable=1`, {
+        readOnly: true,
+      });
+      expect(
+        immutable.prepare("SELECT value FROM metadata WHERE key = 'database_version'").get(),
+      ).toMatchObject({ value: '2' });
+      immutable.close();
+      const files = fs.readdirSync(directory);
+      const before = files.map((file) => fs.readFileSync(path.join(directory, file)));
+
+      const plan = createSetupPlan({ databaseOverride: database, home, env: {} });
+      expect(plan.database).toMatchObject({
+        state: 'journal-present',
+        hint: expect.stringContaining('Do not delete journal files'),
+      });
+      expect(plan.database.databaseVersion).toBeUndefined();
+      expect(plan.actions.canInitializeDatabase).toBe(false);
+      expect(fs.existsSync(home)).toBe(false);
+      expect(fs.readdirSync(directory)).toEqual(files);
+      expect(files.map((file) => fs.readFileSync(path.join(directory, file)))).toEqual(before);
+
+      const recovered = new DatabaseSync(database);
+      expect(
+        recovered.prepare("SELECT value FROM metadata WHERE key = 'database_version'").get(),
+      ).toMatchObject({ value: '1' });
+      recovered.close();
+    } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }
   });

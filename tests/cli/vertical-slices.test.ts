@@ -504,6 +504,165 @@ describe('compiled vertical-slice CLI', () => {
     }
   });
 
+  it('plans setup without writes and requires explicit consent to apply it', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-setup-cli-'));
+    const database = path.join(directory, 'nested', 'crm.db');
+    const home = path.join(directory, 'home');
+    const setupEnvironment = {
+      ...process.env,
+      HOME: home,
+      USERPROFILE: home,
+      PATH: path.join(directory, 'empty-path'),
+    };
+
+    try {
+      const plan = run(database, ['setup', 'plan']);
+      expect(plan).toMatchObject({
+        ok: true,
+        data: {
+          database: { path: database, state: 'absent', selection: 'explicit' },
+          actions: { canInitializeDatabase: true },
+        },
+      });
+      expect(fs.existsSync(path.dirname(database))).toBe(false);
+
+      const nonInteractive = spawnSync(process.execPath, [cliPath, 'setup', '--json'], {
+        encoding: 'utf8',
+      });
+      expect(nonInteractive.status).toBe(2);
+      expect(JSON.parse(nonInteractive.stdout)).toMatchObject({
+        ok: false,
+        error: { code: 'SETUP_INTERACTIVE_TTY_REQUIRED' },
+      });
+
+      const missingConsent = spawnSync(
+        process.execPath,
+        [cliPath, '--db', database, 'setup', 'apply', '--initialize', '--no-skill', '--json'],
+        { encoding: 'utf8' },
+      );
+      expect(missingConsent.status).toBe(2);
+      expect(JSON.parse(missingConsent.stdout)).toMatchObject({
+        ok: false,
+        error: { code: 'SETUP_CONFIRMATION_REQUIRED' },
+      });
+      expect(fs.existsSync(database)).toBe(false);
+
+      fs.mkdirSync(path.join(home, '.pi'), { recursive: true });
+      for (const hostSelection of [['--agent', 'pi'], ['--all-detected']]) {
+        const incompatibleSelection = spawnSync(
+          process.execPath,
+          [
+            cliPath,
+            '--db',
+            database,
+            'setup',
+            'apply',
+            '--initialize',
+            '--no-skill',
+            ...hostSelection,
+            '--yes',
+            '--json',
+          ],
+          { encoding: 'utf8', env: setupEnvironment },
+        );
+        expect(incompatibleSelection.status).toBe(2);
+        expect(JSON.parse(incompatibleSelection.stdout)).toMatchObject({
+          ok: false,
+          error: { code: 'VALIDATION_ERROR' },
+        });
+        expect(fs.existsSync(database)).toBe(false);
+        expect(fs.existsSync(path.join(home, '.agents', 'skills', 'agentcrm'))).toBe(false);
+      }
+
+      const applied = spawnSync(
+        process.execPath,
+        [
+          cliPath,
+          '--db',
+          database,
+          'setup',
+          'apply',
+          '--initialize',
+          '--no-skill',
+          '--yes',
+          '--json',
+        ],
+        { encoding: 'utf8', env: setupEnvironment },
+      );
+      expect(applied.status).toBe(0);
+      expect(JSON.parse(applied.stdout)).toMatchObject({
+        ok: true,
+        data: { database: { action: 'initialized', path: database }, skillInstallations: [] },
+      });
+      expect(fs.existsSync(path.join(home, '.agents', 'skills', 'agentcrm'))).toBe(false);
+      expect(fs.existsSync(path.join(home, '.claude', 'skills', 'agentcrm'))).toBe(false);
+      expect(fs.existsSync(path.join(home, '.hermes', 'skills', 'agentcrm'))).toBe(false);
+      expect(run(database, ['doctor'])).toMatchObject({ ok: true, data: { healthy: true } });
+
+      const explicitHost = spawnSync(
+        process.execPath,
+        [cliPath, '--db', database, 'setup', 'apply', '--agent', 'pi', '--yes', '--json'],
+        { encoding: 'utf8', env: setupEnvironment },
+      );
+      expect(explicitHost.status).toBe(0);
+      expect(JSON.parse(explicitHost.stdout)).toMatchObject({
+        ok: true,
+        data: {
+          skillInstallations: [{ hosts: ['pi'], action: 'installed', changed: true }],
+        },
+      });
+      expect(fs.existsSync(path.join(home, '.agents', 'skills', 'agentcrm', 'SKILL.md'))).toBe(
+        true,
+      );
+
+      const allDetected = spawnSync(
+        process.execPath,
+        [cliPath, '--db', database, 'setup', 'apply', '--all-detected', '--yes', '--json'],
+        { encoding: 'utf8', env: setupEnvironment },
+      );
+      expect(allDetected.status).toBe(0);
+      expect(JSON.parse(allDetected.stdout)).toMatchObject({
+        ok: true,
+        data: {
+          skillInstallations: [{ hosts: ['pi'], action: 'already-current', changed: false }],
+        },
+      });
+
+      const installedSkill = path.join(home, '.agents', 'skills', 'agentcrm', 'SKILL.md');
+      const bundledContent = fs.readFileSync(installedSkill, 'utf8');
+      fs.appendFileSync(installedSkill, '\nlocal edits');
+      const protectedSkill = spawnSync(
+        process.execPath,
+        [cliPath, '--db', database, 'setup', 'apply', '--agent', 'pi', '--yes', '--json'],
+        { encoding: 'utf8', env: setupEnvironment },
+      );
+      expect(protectedSkill.status).toBe(5);
+      expect(JSON.parse(protectedSkill.stdout)).toMatchObject({
+        error: { code: 'SETUP_DESTINATION_CONFLICT' },
+      });
+      const forcedSkill = spawnSync(
+        process.execPath,
+        [
+          cliPath,
+          '--db',
+          database,
+          'setup',
+          'apply',
+          '--agent',
+          'pi',
+          '--force-skill',
+          '--yes',
+          '--json',
+        ],
+        { encoding: 'utf8', env: setupEnvironment },
+      );
+      expect(forcedSkill.status).toBe(0);
+      expect(fs.readFileSync(installedSkill, 'utf8')).toBe(bundledContent);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('installs and safely uninstalls the bundled skill without touching CRM data', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-skill-cli-'));
     const database = path.join(directory, 'crm.db');

@@ -186,6 +186,58 @@ agentcrm --db ./crm.db doctor --json
 
 Checks include database version, POSIX permissions, foreign-key integrity, FTS5 consistency, and default schema availability. `healthy` is false when a required integrity check fails; warnings remain visible in `checks`.
 
+## Setup
+
+### `setup`
+
+Run guided setup in a trusted local terminal:
+
+```bash
+agentcrm setup
+```
+
+The command is intentionally interactive only when stdin, stdout, and stderr are terminals. It shows the selected database path and local-data notice, asks before creating an absent database, presents detected verified hosts, allows a comma-separated subset such as `pi, hermes` (or `none`), then shows a final summary and asks again before writing. Candidate hosts require explicit `setup apply --agent <host>` selection.
+
+It does not run from an ordinary agent chat, JSON mode, a pipe, or CI command; those uses fail with `SETUP_INTERACTIVE_TTY_REQUIRED`. Use plan/apply instead. It does not change shell/service configuration, restart hosts, or install every cataloged host by default.
+
+### `setup plan`
+
+Inspect database and host setup:
+
+```bash
+agentcrm --db ./crm.db setup plan --json
+```
+
+The plan reports database state, selection source, local privacy notice, host detection evidence, host Skill state, destination groups, and restart guidance. It creates neither the selected database nor a Skill directory. Existing databases without active journal sidecars are inspected in immutable read-only mode so sidecar files are not created during planning. A regular rollback journal with a zeroed header, as left by a successful PERSIST-mode commit, is safe to inspect. If a `-wal` sidecar is nonempty, a `-journal` sidecar has a hot-journal header, or either sidecar is not a regular file, the plan reports `wal-present` or `journal-present` with a recovery hint instead of reading potentially stale metadata; interactive setup and apply refuse to proceed. Close applications using the database and let SQLite checkpoint or recover it before retrying. After an unclean shutdown, SQLite may need to reopen and cleanly close the database to recover it first. Never delete WAL or rollback-journal files manually: they may be needed for recovery. Setup performs no checkpoint or recovery itself. Inspection is a point-in-time preflight, not protection against another process changing the database concurrently. Host and destination-group `destinationKey` values use the same canonical-path rule.
+
+### `setup apply`
+
+Use a deterministic, non-prompting operation only after a local administrator has reviewed the plan and consented:
+
+```bash
+agentcrm --db ./crm.db setup apply \
+  --initialize \
+  --agent pi \
+  --agent claude-code \
+  --yes \
+  --json
+```
+
+Options:
+
+| Option | Meaning |
+| --- | --- |
+| `--initialize` | Create an absent database or apply supported migrations to the selected database |
+| `--agent <pi|claude-code|hermes>` | Install the bundled Skill for an explicit host; repeat for several hosts |
+| `--all-detected` | Select detected verified hosts only; never selects a cataloged but undetected host |
+| `--no-skill` | Initialize the database without installing any Skill |
+| `--force-skill` | Replace a selected modified Skill after explicit review; does not bypass symlink safety |
+| `--yes` | Confirm only the actions supplied on this command; it does not select hosts implicitly |
+
+An absent database requires both `--initialize` and `--yes`. Repeating initialization reports `unchanged` when no database creation, migration, or seeding was needed. Apply rejects unsafe database targets, unsafe Skill paths, and unowned or locally modified Skills unless `--force-skill` is explicit. Symlinked path components, including destination ancestors and managed manifests, are rejected even with force. The only symlink exceptions are macOS's standard `/tmp`, `/var`, and `/etc` aliases to their corresponding `/private/...` directories. Use a canonical path instead of a user-created symlink. These checks do not protect against concurrent path replacement by another process with write access. Separate Skill roots are applied independently; an error after one success reports `SETUP_PARTIAL_FAILURE` with completed and failed destinations, and retrying is safe.
+
+Known setup destinations are Pi at `~/.agents/skills`, Claude Code at `$CLAUDE_CONFIG_DIR/skills` or `~/.claude/skills`, and Hermes at `~/.hermes/skills`. Pi and Claude Code require fresh sessions; Hermes needs a fresh session or gateway restart. Setup only reports this guidance and never restarts a process.
+
 ## Schema commands
 
 ### `schema show`

@@ -1,8 +1,10 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { DatabaseSync } from 'node:sqlite';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { buildProgram } from '../../src/cli/program.js';
+import { initializeDatabase } from '../../src/db/database.js';
 
 const { question } = vi.hoisted(() => ({
   question: vi.fn<(prompt: string) => Promise<string>>(),
@@ -97,6 +99,23 @@ describe('interactive setup', () => {
     await expect(setup()).rejects.toMatchObject({ code: 'VALIDATION_ERROR' });
     expect(fs.existsSync(database)).toBe(false);
     expect(fs.existsSync(path.join(home, '.agents'))).toBe(false);
+  });
+
+  it('refuses a database with WAL state before prompting and explains recovery', async () => {
+    initializeDatabase(database);
+    const writable = new DatabaseSync(database);
+    try {
+      writable.prepare("UPDATE metadata SET value = '2' WHERE key = 'database_version'").run();
+      await expect(setup()).rejects.toMatchObject({
+        code: 'SETUP_DATABASE_CONFLICT',
+        message: expect.stringContaining('Do not delete WAL files'),
+        details: { database, state: 'wal-present' },
+      });
+      expect(question).not.toHaveBeenCalled();
+      expect(fs.existsSync(path.join(home, '.agents'))).toBe(false);
+    } finally {
+      writable.close();
+    }
   });
 
   it('rejects JSON mode on a TTY without prompting or writing prose', async () => {

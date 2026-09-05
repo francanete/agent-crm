@@ -29,6 +29,7 @@ export type DatabaseState =
   | 'not-a-regular-file'
   | 'non-agentcrm-file'
   | 'unsupported-version'
+  | 'wal-present'
   | 'unreadable';
 
 export interface DatabaseInspection {
@@ -36,13 +37,14 @@ export interface DatabaseInspection {
   selection: 'default' | 'environment' | 'explicit';
   state: DatabaseState;
   databaseVersion?: number;
+  hint?: string;
 }
 
 export interface SetupHostPlan {
   key: string;
   displayName: string;
   support: 'verified' | 'candidate';
-  detection: 'detected' | 'not-detected' | 'unsupported-on-platform';
+  detection: 'detected' | 'not-detected';
   evidence: string[];
   destination: string;
   destinationKey: string;
@@ -103,6 +105,23 @@ function inspectDatabase(
 
   if (!stat.isFile() || stat.isSymbolicLink()) {
     return { path: databasePath, selection, state: 'not-a-regular-file' };
+  }
+
+  // Immutable reads ignore WAL contents; do not report compatibility from an incomplete snapshot.
+  try {
+    const wal = fs.lstatSync(`${databasePath}-wal`);
+    if (!wal.isFile() || wal.size > 0) {
+      return {
+        path: databasePath,
+        selection,
+        state: 'wal-present',
+        hint: 'A nonempty or unsafe WAL sidecar is present. Close applications using this database and let SQLite checkpoint it before retrying setup. Do not delete WAL files manually.',
+      };
+    }
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+      return { path: databasePath, selection, state: 'unreadable' };
+    }
   }
 
   let database: DatabaseSync;
@@ -248,7 +267,7 @@ export function applySetup(options: SetupApplyOptions): SetupApplyResult {
   if (plan.database.state !== 'absent' && plan.database.state !== 'agentcrm-ready') {
     throw new AppError(
       'SETUP_DATABASE_CONFLICT',
-      'The selected database cannot be initialized safely',
+      plan.database.hint ?? 'The selected database cannot be initialized safely',
       {
         database: plan.database.path,
         state: plan.database.state,

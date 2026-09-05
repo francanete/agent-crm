@@ -4,7 +4,7 @@ import path from 'node:path';
 
 export type HostKey = 'pi' | 'claude-code' | 'hermes';
 export type HostSupport = 'verified' | 'candidate';
-export type HostDetectionState = 'detected' | 'not-detected' | 'unsupported-on-platform';
+export type HostDetectionState = 'detected' | 'not-detected';
 
 export interface HostDetection {
   state: HostDetectionState;

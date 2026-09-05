@@ -74,7 +74,7 @@ describe('setup plan', () => {
     }
   });
 
-  it('inspects WAL-mode databases without creating sidecar files', () => {
+  it.each([false, true])('keeps checkpointed files unchanged (empty WAL: %s)', (emptyWal) => {
     const directory = temporaryDirectory();
     const database = path.join(directory, 'crm.db');
     const source = path.join(directory, 'SKILL.md');
@@ -85,6 +85,7 @@ describe('setup plan', () => {
     writable.close();
     fs.rmSync(`${database}-wal`, { force: true });
     fs.rmSync(`${database}-shm`, { force: true });
+    if (emptyWal) fs.writeFileSync(`${database}-wal`, '');
 
     try {
       const plan = createSetupPlan({
@@ -95,9 +96,58 @@ describe('setup plan', () => {
         sourcePath: source,
       });
       expect(plan.database).toMatchObject({ state: 'agentcrm-ready', databaseVersion: 1 });
-      expect(fs.existsSync(`${database}-wal`)).toBe(false);
+      expect(fs.existsSync(`${database}-wal`)).toBe(emptyWal);
+      if (emptyWal) expect(fs.statSync(`${database}-wal`).size).toBe(0);
       expect(fs.existsSync(`${database}-shm`)).toBe(false);
     } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('refuses to inspect committed WAL metadata until SQLite checkpoints it', () => {
+    const directory = temporaryDirectory();
+    const database = path.join(directory, 'crm.db');
+    const home = path.join(directory, 'home');
+    const options = { databaseOverride: database, home, env: {} };
+    initializeDatabase(database);
+    const writable = new DatabaseSync(database);
+
+    try {
+      writable.exec('PRAGMA wal_autocheckpoint=0');
+      writable.prepare("UPDATE metadata SET value = '2' WHERE key = 'database_version'").run();
+      const files = fs.readdirSync(directory);
+      const before = files.map((file) => fs.readFileSync(path.join(directory, file)));
+      expect(fs.statSync(`${database}-wal`).size).toBeGreaterThan(0);
+
+      const plan = createSetupPlan(options);
+      expect(plan.database).toMatchObject({
+        state: 'wal-present',
+        hint: expect.stringContaining('Do not delete WAL files'),
+      });
+      expect(plan.database.databaseVersion).toBeUndefined();
+      expect(plan.actions.canInitializeDatabase).toBe(false);
+      for (const initialize of [false, true]) {
+        expect(() =>
+          applySetup({ ...options, initialize, agents: ['pi'], yes: true }),
+        ).toThrowError(
+          expect.objectContaining({
+            code: 'SETUP_DATABASE_CONFLICT',
+            message: expect.stringContaining('Do not delete WAL files'),
+            details: expect.objectContaining({ state: 'wal-present' }),
+          }),
+        );
+      }
+      expect(fs.existsSync(home)).toBe(false);
+      expect(fs.readdirSync(directory)).toEqual(files);
+      expect(files.map((file) => fs.readFileSync(path.join(directory, file)))).toEqual(before);
+
+      writable.close();
+      expect(createSetupPlan(options).database).toMatchObject({
+        state: 'unsupported-version',
+        databaseVersion: 2,
+      });
+    } finally {
+      if (writable.isOpen) writable.close();
       fs.rmSync(directory, { recursive: true, force: true });
     }
   });

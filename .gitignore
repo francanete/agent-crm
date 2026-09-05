@@ -9,4 +9,4 @@ coverage/
 *.db-wal
 *.tgz
 .DS_Store
-.agents/
+/.agents/reviews/

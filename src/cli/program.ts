@@ -432,7 +432,7 @@ async function runInteractiveSetup(globals: GlobalOptions): Promise<void> {
   if (plan.database.state !== 'absent' && plan.database.state !== 'agentcrm-ready') {
     throw new AppError(
       'SETUP_DATABASE_CONFLICT',
-      'The selected database cannot be initialized safely',
+      plan.database.hint ?? 'The selected database cannot be initialized safely',
       {
         database: plan.database.path,
         state: plan.database.state,

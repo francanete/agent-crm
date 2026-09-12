@@ -9,6 +9,7 @@ import { inImmediateTransaction } from '../db/transaction.js';
 import { readBoundedBytes } from './bounded-input.js';
 import { canonicalJson, requestHash } from './canonical.js';
 import { AppError } from './errors.js';
+import { flattenSearchValue } from './fts.js';
 import { findIdempotentReplay } from './idempotency.js';
 import { describeSchema } from './schema.js';
 import { now } from './time.js';
@@ -549,7 +550,12 @@ export function validateLogicalDocument(document: ExportDocument): void {
       }
     }
     for (const field of object.fields) {
-      if (field.archivedAt === null && field.required && !Object.hasOwn(record.values, field.key)) {
+      if (
+        (record.archivedAt === null || field.key === object.titleFieldKey) &&
+        field.archivedAt === null &&
+        field.required &&
+        !Object.hasOwn(record.values, field.key)
+      ) {
         invalidImport(`Record '${record.id}' is missing required field '${field.key}'`);
       }
     }
@@ -729,19 +735,6 @@ export function dryRunImport(database: DatabaseSync, document: ExportDocument): 
     dryRun: true,
     replayed: false,
   };
-}
-
-function flattenSearchValue(value: unknown, output: string[], depth = 0): void {
-  if (depth > 20 || value === null || value === undefined) return;
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    output.push(String(value));
-  } else if (Array.isArray(value)) {
-    for (const entry of value) flattenSearchValue(entry, output, depth + 1);
-  } else if (typeof value === 'object') {
-    for (const entry of Object.values(value as Record<string, unknown>)) {
-      flattenSearchValue(entry, output, depth + 1);
-    }
-  }
 }
 
 function insertDocument(database: DatabaseSync, document: ExportDocument): void {

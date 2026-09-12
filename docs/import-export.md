@@ -62,9 +62,11 @@ Before mutation, import validates the complete document, including:
 - unique object, field, record, relationship, and event IDs
 - schema ownership and title-field invariants
 - field types, formats, enum options, and defaults
-- record values, required fields, display names, and schema versions
+- record values, required fields for active records, title/display-name invariants for all records, and schema versions
 - relationship endpoints and active uniqueness
 - event and idempotency-key uniqueness
+
+Archived records may lack non-title fields that became required while those records were archived. Import preserves them unchanged and does not reactivate them. Supplied values remain validated, and a later `record restore` must satisfy the current active schema.
 
 The write runs in one immediate transaction. Any failure rolls back the schema, records,
 relationships, events, and FTS rebuild. Imported IDs, timestamps, archived state, and source

@@ -367,7 +367,9 @@ agentcrm --idempotency-key person-ana-v1 \
   --values '{"name":"Ana","email":"ana@example.com"}' --json
 ```
 
-The object and fields must be active. Values are normalized and validated against current schema. The title field determines `displayName`.
+For a new write, the object and fields must be active. Values are normalized and validated against current schema. The title field determines `displayName`.
+
+Datetime fields require calendar-valid RFC 3339 timestamps with seconds and an explicit timezone. Impossible dates such as February 30 and times such as `24:00:00` are rejected, not rolled forward. Valid values are normalized to UTC with millisecond precision.
 
 Agents should search before creating a person or organization; idempotency protects exact retries but is not identity matching.
 
@@ -463,6 +465,8 @@ Operators:
 | `json` | `exists` |
 
 `exists` requires a boolean value. `in` requires 1–100 values. Filters support at most 25 predicates and nesting depth 5.
+
+Text `contains` and `starts_with` accept partial strings, including email/URL fragments such as `@example.com` or `https://`. They do not require a complete formatted field value. Equality, inequality, membership, and writes retain full field validation.
 
 ### `record archive|restore`
 
@@ -681,7 +685,9 @@ agentcrm --idempotency-key telegram-message-123:create-ana \
   record create person --values '{"name":"Ana"}' --json
 ```
 
-Reuse the key only for the exact same normalized operation, actor, source, IDs, and values. An identical retry returns the original result. Different intent with the same key fails with `IDEMPOTENCY_CONFLICT`.
+Reuse the key only for the exact same operation, actor, source, IDs, and request values. An identical retry returns the original result. Different intent with the same key fails with `IDEMPOTENCY_CONFLICT`.
+
+For `record create`, request identity uses the supplied JSON values before defaults or field-value normalization; JSON object-key order is irrelevant. Omitting a field, explicitly supplying its default, and supplying `null` are different requests, even when stored values would match. Exact retries still return the original result after schema changes or field archival. Likewise, an exact relationship-add retry succeeds after an endpoint is archived, without restoring it. New writes always enforce current schema and active-endpoint requirements.
 
 Recommended keys are scoped to a durable external request or import row. Do not reuse one global key across operations.
 

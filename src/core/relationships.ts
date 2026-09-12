@@ -104,14 +104,8 @@ function mapRelationship(row: RelationshipRow): RelationshipData {
   };
 }
 
-function requireActiveRecord(database: DatabaseSync, idPrefix: string): RecordSummary {
+function getRecordSummary(database: DatabaseSync, idPrefix: string): RecordSummary {
   const record = getRecord(database, idPrefix);
-  if (record.archivedAt !== null) {
-    throw new AppError('RECORD_ARCHIVED', `Record '${idPrefix}' is archived`, {
-      id: record.id,
-      archivedAt: record.archivedAt,
-    });
-  }
   return {
     id: record.id,
     object: record.object,
@@ -135,41 +129,31 @@ export function addRelationship(
     );
   }
 
-  const source = requireActiveRecord(database, sourceId);
-  const target = requireActiveRecord(database, targetId);
-  if (source.id === target.id) {
-    throw new AppError('VALIDATION_ERROR', 'A record cannot be related to itself', {
-      recordId: source.id,
-    });
-  }
-
-  const hash = requestHash({
-    operation: 'relationship.add',
-    sourceId: source.id,
-    type,
-    targetId: target.id,
-    actor: options.actor,
-    source: options.source ?? null,
-  });
-
   return inImmediateTransaction(database, () => {
-    if (options.idempotencyKey) {
-      const existing = database
-        .prepare('SELECT metadata_json FROM events WHERE idempotency_key = ?')
-        .get(options.idempotencyKey) as { metadata_json: string } | undefined;
-      if (existing) {
-        const metadata = JSON.parse(existing.metadata_json) as {
-          requestHash?: string;
-          result?: RelationshipData;
-        };
-        if (metadata.requestHash !== hash || !metadata.result) {
-          throw new AppError(
-            'IDEMPOTENCY_CONFLICT',
-            'The idempotency key was already used for a different operation',
-            { idempotencyKey: options.idempotencyKey },
-          );
-        }
-        return { ...metadata.result, replayed: true };
+    const source = getRecordSummary(database, sourceId);
+    const target = getRecordSummary(database, targetId);
+    if (source.id === target.id) {
+      throw new AppError('VALIDATION_ERROR', 'A record cannot be related to itself', {
+        recordId: source.id,
+      });
+    }
+
+    const hash = requestHash({
+      operation: 'relationship.add',
+      sourceId: source.id,
+      type,
+      targetId: target.id,
+      actor: options.actor,
+      source: options.source ?? null,
+    });
+    const replay = findIdempotentReplay<RelationshipData>(database, options.idempotencyKey, hash);
+    if (replay) return { ...replay, replayed: true };
+    for (const record of [source, target]) {
+      if (record.archivedAt !== null) {
+        throw new AppError('RECORD_ARCHIVED', `Record '${record.id}' is archived`, {
+          id: record.id,
+          archivedAt: record.archivedAt,
+        });
       }
     }
 
@@ -209,32 +193,20 @@ export function addRelationship(
       `)
       .run(relationship.id, source.id, target.id, type, timestamp, timestamp);
 
-    const metadata: Record<string, unknown> = {
-      operation: 'relationship.add',
-      requestHash: hash,
-      result: relationship,
-      cliVersion: options.cliVersion,
-      workingDirectory: process.cwd(),
-    };
-    if (process.env.PI_SESSION_ID) metadata.piSessionId = process.env.PI_SESSION_ID;
-
-    database
-      .prepare(`
-        INSERT INTO events(
-          id, subject_type, subject_id, action, actor, source, idempotency_key,
-          before_json, after_json, metadata_json, created_at
-        ) VALUES (?, 'relationship', ?, 'linked', ?, ?, ?, NULL, ?, ?, ?)
-      `)
-      .run(
-        randomUUID(),
-        relationship.id,
-        options.actor,
-        options.source ?? null,
-        options.idempotencyKey ?? null,
-        JSON.stringify(relationship),
-        JSON.stringify(metadata),
+    appendMutationEvent(
+      database,
+      {
+        subjectType: 'relationship',
+        subjectId: relationship.id,
+        action: 'linked',
+        operation: 'relationship.add',
+        requestHash: hash,
+        before: null,
+        result: relationship,
         timestamp,
-      );
+      },
+      options,
+    );
 
     return { ...relationship, replayed: false };
   });

@@ -9,9 +9,14 @@ import {
   readExportFile,
   writeExportFile,
 } from '../../src/core/portability.js';
-import { archiveRecord, createRecord, updateRecord } from '../../src/core/records.js';
+import {
+  archiveRecord,
+  createRecord,
+  restoreRecord,
+  updateRecord,
+} from '../../src/core/records.js';
 import { addRelationship, archiveRelationship } from '../../src/core/relationships.js';
-import { addField } from '../../src/core/schema.js';
+import { addField, archiveField, restoreField } from '../../src/core/schema.js';
 import { searchRecords } from '../../src/core/search.js';
 import { initializeDatabase, openDatabase } from '../../src/db/index.js';
 
@@ -115,6 +120,170 @@ describe('native export and import', () => {
       expect(
         searchRecords(target, 'Portable relationship', { limit: 20, offset: 0 }).results[0],
       ).toMatchObject({ id: person.id, displayName: 'Ana' });
+    } finally {
+      source.close();
+      target.close();
+    }
+  });
+
+  it.each([false, true])(
+    'round-trips archived records missing a restored required field (withoutHistory=%s)',
+    (withoutHistory) => {
+      const directory = temporaryDirectory();
+      const sourcePath = path.join(directory, 'source.db');
+      const targetPath = path.join(directory, 'target.db');
+      const output = path.join(directory, 'backup.json');
+      initializeDatabase(sourcePath);
+      initializeDatabase(targetPath);
+      const source = openDatabase(sourcePath);
+      const target = openDatabase(targetPath);
+      const mutation = { actor: 'test', cliVersion: 'test' };
+
+      try {
+        addField(
+          source,
+          {
+            objectKey: 'person',
+            key: 'code',
+            label: 'Code',
+            type: 'text',
+            required: true,
+          },
+          mutation,
+        );
+        archiveField(source, 'person', 'code', mutation);
+        const person = createRecord(source, 'person', { name: 'Historical Ana' }, mutation);
+        archiveRecord(source, person.id, mutation);
+        restoreField(source, 'person', 'code', mutation);
+
+        const exported = createExport(source, { withoutHistory });
+        writeExportFile(output, exported);
+        const document = readExportFile(output);
+        expect(dryRunImport(target, document).dryRun).toBe(true);
+        importDocument(target, document, mutation);
+        const restored = createExport(target);
+        expect(restored.data.objects).toEqual(exported.data.objects);
+        expect(restored.data.records).toEqual(exported.data.records);
+        expect(restored.data.events.slice(0, -1)).toEqual(exported.data.events);
+        expect(target.prepare('SELECT COUNT(*) AS count FROM records_fts').get()).toMatchObject({
+          count: 0,
+        });
+        expect(() => restoreRecord(target, person.id, mutation)).toThrowError(
+          expect.objectContaining({ code: 'REQUIRED_FIELD_MISSING' }),
+        );
+        expect(createExport(target).data).toEqual(restored.data);
+
+        const invalid = structuredClone(exported);
+        const record = invalid.data.records[0];
+        if (!record) throw new Error('Expected an archived record');
+        record.archivedAt = null;
+        fs.writeFileSync(output, JSON.stringify(invalid));
+        expect(() => readExportFile(output)).toThrowError(/missing required field 'code'/);
+
+        record.archivedAt = person.createdAt;
+        record.values.code = 42;
+        fs.writeFileSync(output, JSON.stringify(invalid));
+        expect(() => readExportFile(output)).toThrowError(/invalid field value/);
+        delete record.values.code;
+        delete record.values.name;
+        fs.writeFileSync(output, JSON.stringify(invalid));
+        expect(() => readExportFile(output)).toThrowError(
+          expect.objectContaining({ code: 'IMPORT_INVALID' }),
+        );
+      } finally {
+        source.close();
+        target.close();
+      }
+    },
+  );
+
+  it('keeps nested search text consistent through writes, lifecycle changes, and import', () => {
+    const directory = temporaryDirectory();
+    const sourcePath = path.join(directory, 'source.db');
+    const targetPath = path.join(directory, 'target.db');
+    const output = path.join(directory, 'backup.json');
+    initializeDatabase(sourcePath);
+    initializeDatabase(targetPath);
+    const source = openDatabase(sourcePath);
+    const target = openDatabase(targetPath);
+    const mutation = { actor: 'test', cliVersion: 'test' };
+
+    try {
+      addField(
+        source,
+        {
+          objectKey: 'person',
+          key: 'details',
+          label: 'Details',
+          type: 'json',
+          required: false,
+        },
+        mutation,
+      );
+      const person = createRecord(
+        source,
+        'person',
+        {
+          name: 'Ana',
+          role: 'Founder',
+          tags: ['customer'],
+          details: { nested: ['indexable', 42, true, null] },
+        },
+        mutation,
+      );
+      const indexed = () =>
+        source.prepare('SELECT * FROM records_fts WHERE record_id = ?').get(person.id);
+      const original = indexed();
+      expect(
+        searchRecords(source, 'indexable 42 true customer', { limit: 20, offset: 0 }).results[0]
+          ?.id,
+      ).toBe(person.id);
+      archiveField(source, 'person', 'details', mutation);
+      expect(searchRecords(source, 'indexable', { limit: 20, offset: 0 }).results).toEqual([]);
+      updateRecord(source, person.id, { role: null }, mutation);
+      restoreField(source, 'person', 'details', mutation);
+      expect(searchRecords(source, 'indexable', { limit: 20, offset: 0 }).results[0]?.id).toBe(
+        person.id,
+      );
+      expect(searchRecords(source, 'Founder', { limit: 20, offset: 0 }).results).toEqual([]);
+      updateRecord(source, person.id, { role: 'Founder' }, mutation);
+      expect(indexed()).toEqual(original);
+      archiveRecord(source, person.id, mutation);
+      expect(indexed()).toBeUndefined();
+      restoreRecord(source, person.id, mutation);
+      expect(indexed()).toEqual(original);
+      writeExportFile(output, createExport(source));
+      importDocument(target, readExportFile(output), mutation);
+      expect(
+        target.prepare('SELECT * FROM records_fts WHERE record_id = ?').get(person.id),
+      ).toEqual(original);
+    } finally {
+      source.close();
+      target.close();
+    }
+  });
+
+  it('preserves create retry intent across schema changes and a native round trip', () => {
+    const directory = temporaryDirectory();
+    const sourcePath = path.join(directory, 'source.db');
+    const targetPath = path.join(directory, 'target.db');
+    const output = path.join(directory, 'backup.json');
+    initializeDatabase(sourcePath);
+    initializeDatabase(targetPath);
+    const source = openDatabase(sourcePath);
+    const target = openDatabase(targetPath);
+    const mutation = { actor: 'test', cliVersion: 'test' };
+    const options = { ...mutation, idempotencyKey: 'portable-create' };
+    const values = { name: 'Ana', notes: 'Original note' };
+
+    try {
+      const first = createRecord(source, 'person', values, options);
+      archiveField(source, 'person', 'notes', mutation);
+      writeExportFile(output, createExport(source));
+      importDocument(target, readExportFile(output), mutation);
+      const before = createExport(target).data;
+      expect(createRecord(target, 'person', values, options)).toEqual({ ...first, replayed: true });
+      expect(createExport(target).data).toEqual(before);
     } finally {
       source.close();
       target.close();

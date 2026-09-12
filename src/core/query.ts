@@ -140,6 +140,16 @@ function normalizePredicateValue(
     return sqlValue((normalized as string[])[0]);
   }
 
+  if (field.type === 'text' && (operator === 'contains' || operator === 'starts_with')) {
+    if (typeof value !== 'string') {
+      throw new AppError(
+        'INVALID_FIELD_VALUE',
+        `Operator '${operator}' requires a string for field '${field.key}'`,
+      );
+    }
+    return value;
+  }
+
   return sqlValue(validateAndNormalizeFieldValue(field, value));
 }
 

@@ -178,11 +178,10 @@ A typical mutation follows this sequence:
 ```text
 Parse bounded CLI input
   → resolve and validate database
-  → resolve active schema and IDs
-  → canonicalize request
-  → check idempotency replay/conflict
   → begin immediate transaction
-  → validate current state
+  → resolve stable IDs and canonicalize request
+  → check idempotency replay/conflict
+  → validate active schema and current state
   → mutate domain tables
   → synchronize FTS when applicable
   → append immutable event
@@ -197,6 +196,8 @@ An exception rolls back the entire transaction before the CLI emits an error env
 ## Idempotency
 
 Mutating commands can receive `--idempotency-key`. The mutation computes a hash from the normalized operation and intent. If the key is new, the change and event commit together. If the same key and request hash already exist, Agent CRM returns the recorded result as a replay. If the key was used for a different normalized request, the operation fails with `IDEMPOTENCY_CONFLICT`.
+
+Record creation hashes canonical caller-supplied values before defaults and field-value normalization. Reordering JSON object keys does not change intent, but omitting a field, explicitly supplying its default, and supplying `null` are distinct requests. Exact create/link retries return the original result even after field or endpoint archival; they do not restore or update current data. New writes still validate current schema and endpoint state inside the transaction.
 
 Idempotency protects retries; it does not replace identity resolution. Agents should still search before creating people and organizations. Exact-field upsert handles deterministic import-style identity separately.
 

@@ -22,6 +22,77 @@ describe('compiled vertical-slice CLI', () => {
     expect(version.trim()).toBe(packageMetadata.version);
   });
 
+  it.each([
+    { before: ['--json', '--text'], after: [] },
+    { before: [], after: ['--text', '--json'] },
+    { before: ['--json'], after: ['--text', '--quiet'] },
+  ])('rejects conflicting output flags before writes: %j', ({ before, after }) => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-output-cli-'));
+    const database = path.join(directory, 'crm.db');
+    const absentDirectory = path.join(directory, 'uninitialized');
+    const output = path.join(directory, 'backup.json');
+
+    try {
+      run(database, ['init']);
+      const original = fs.readFileSync(database);
+      const commands = [
+        {
+          database,
+          args: ['record', 'create', 'person', '--values', '{"name":"Must not be stored"}'],
+        },
+        { database: path.join(absentDirectory, 'crm.db'), args: ['init'] },
+        { database, args: ['export', '--output', output] },
+      ];
+      for (const command of commands) {
+        const result = spawnSync(
+          process.execPath,
+          [cliPath, '--db', command.database, ...before, ...command.args, ...after],
+          { encoding: 'utf8' },
+        );
+        expect(result.status).toBe(2);
+        expect(result.stdout).toBe('');
+        expect(result.stderr).toContain('Use only one of --json or --text');
+      }
+      expect(fs.readFileSync(database).equals(original)).toBe(true);
+      expect(fs.existsSync(absentDirectory)).toBe(false);
+      expect(fs.existsSync(output)).toBe(false);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
+  it('rejects impossible follow-up dates without writing records or history', () => {
+    const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-datetime-cli-'));
+    const database = path.join(directory, 'crm.db');
+    try {
+      run(database, ['init']);
+      const before = fs.readFileSync(database);
+      const result = spawnSync(
+        process.execPath,
+        [
+          cliPath,
+          '--db',
+          database,
+          '--json',
+          'record',
+          'create',
+          'followup',
+          '--values',
+          '{"title":"Call Ana","due_at":"2026-02-30T12:00:00Z"}',
+        ],
+        { encoding: 'utf8' },
+      );
+      expect(result.status).toBe(2);
+      expect(JSON.parse(result.stdout)).toMatchObject({
+        ok: false,
+        error: { code: 'INVALID_FIELD_VALUE' },
+      });
+      expect(fs.readFileSync(database).equals(before)).toBe(true);
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('completes diagnostics, Slice A, and Slice B with JSON-only stdout', () => {
     const directory = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-cli-'));
     const database = path.join(directory, 'path with spaces', 'crm.db');

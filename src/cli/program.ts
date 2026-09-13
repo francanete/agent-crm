@@ -532,7 +532,10 @@ export function buildProgram(): Command {
     .option('--idempotency-key <key>', 'safely retry a mutation')
     .option('--quiet', 'suppress result output')
     .showHelpAfterError()
-    .exitOverride();
+    .exitOverride()
+    .hook('preAction', () => {
+      outputMode(program.opts<GlobalOptions>());
+    });
 
   program
     .command('version')

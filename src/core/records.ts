@@ -5,6 +5,7 @@ import { inImmediateTransaction } from '../db/transaction.js';
 import { requestHash } from './canonical.js';
 import { AppError } from './errors.js';
 import { appendMutationEvent } from './events.js';
+import { flattenSearchValue } from './fts.js';
 import { findIdempotentReplay } from './idempotency.js';
 import { describeSchema, getActiveObject } from './schema.js';
 import { now } from './time.js';
@@ -94,23 +95,6 @@ function normalizeValues(
   return values;
 }
 
-function flattenSearchValue(value: unknown, output: string[], depth = 0): void {
-  if (depth > 20 || value === null || value === undefined) return;
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    output.push(String(value));
-    return;
-  }
-  if (Array.isArray(value)) {
-    for (const entry of value) flattenSearchValue(entry, output, depth + 1);
-    return;
-  }
-  if (typeof value === 'object') {
-    for (const entry of Object.values(value as Record<string, unknown>)) {
-      flattenSearchValue(entry, output, depth + 1);
-    }
-  }
-}
-
 export function mapStoredRecord(row: StoredRecordRow): RecordData {
   return {
     id: row.id,
@@ -140,43 +124,26 @@ export function createRecord(
   rawValues: unknown,
   options: CreateRecordOptions,
 ): CreateRecordResult {
-  const object = getActiveObject(database, objectKey);
   const input = parseInputValues(rawValues);
-  const values = normalizeValues(object.fields, input);
-  const displayName = values[object.titleFieldKey];
-  if (typeof displayName !== 'string' || displayName.trim().length === 0) {
-    throw new AppError('REQUIRED_FIELD_MISSING', 'The title field must contain non-blank text', {
-      field: object.titleFieldKey,
-    });
-  }
-
   const hash = requestHash({
     operation: 'record.create',
-    object: object.key,
-    values,
+    object: objectKey,
+    values: input,
     actor: options.actor,
     source: options.source ?? null,
   });
 
   return inImmediateTransaction(database, () => {
-    if (options.idempotencyKey) {
-      const existing = database
-        .prepare('SELECT metadata_json FROM events WHERE idempotency_key = ?')
-        .get(options.idempotencyKey) as { metadata_json: string } | undefined;
-      if (existing) {
-        const metadata = JSON.parse(existing.metadata_json) as {
-          requestHash?: string;
-          result?: RecordData;
-        };
-        if (metadata.requestHash !== hash || !metadata.result) {
-          throw new AppError(
-            'IDEMPOTENCY_CONFLICT',
-            'The idempotency key was already used for a different operation',
-            { idempotencyKey: options.idempotencyKey },
-          );
-        }
-        return { ...metadata.result, replayed: true };
-      }
+    const replay = findIdempotentReplay<RecordData>(database, options.idempotencyKey, hash);
+    if (replay) return { ...replay, replayed: true };
+
+    const object = getActiveObject(database, objectKey);
+    const values = normalizeValues(object.fields, input);
+    const displayName = values[object.titleFieldKey];
+    if (typeof displayName !== 'string' || displayName.trim().length === 0) {
+      throw new AppError('REQUIRED_FIELD_MISSING', 'The title field must contain non-blank text', {
+        field: object.titleFieldKey,
+      });
     }
 
     const timestamp = now();
@@ -208,42 +175,21 @@ export function createRecord(
         record.updatedAt,
       );
 
-    const searchParts: string[] = [];
-    for (const field of object.fields.filter((entry) => entry.archivedAt === null)) {
-      if (Object.hasOwn(values, field.key)) flattenSearchValue(values[field.key], searchParts);
-    }
-    database
-      .prepare(
-        'INSERT INTO records_fts(record_id, object_key, display_name, content) VALUES (?, ?, ?, ?)',
-      )
-      .run(record.id, object.key, record.displayName, searchParts.join(' '));
-
-    const metadata: Record<string, unknown> = {
-      operation: 'record.create',
-      requestHash: hash,
-      result: record,
-      cliVersion: options.cliVersion,
-      workingDirectory: process.cwd(),
-    };
-    if (process.env.PI_SESSION_ID) metadata.piSessionId = process.env.PI_SESSION_ID;
-
-    database
-      .prepare(`
-        INSERT INTO events(
-          id, subject_type, subject_id, action, actor, source, idempotency_key,
-          before_json, after_json, metadata_json, created_at
-        ) VALUES (?, 'record', ?, 'created', ?, ?, ?, NULL, ?, ?, ?)
-      `)
-      .run(
-        randomUUID(),
-        record.id,
-        options.actor,
-        options.source ?? null,
-        options.idempotencyKey ?? null,
-        JSON.stringify(record),
-        JSON.stringify(metadata),
+    insertRecordFts(database, object, record);
+    appendMutationEvent(
+      database,
+      {
+        subjectType: 'record',
+        subjectId: record.id,
+        action: 'created',
+        operation: 'record.create',
+        requestHash: hash,
+        before: null,
+        result: record,
         timestamp,
-      );
+      },
+      options,
+    );
 
     return { ...record, replayed: false };
   });
@@ -286,12 +232,7 @@ export function updateRecord(
       }
     }
 
-    const merged: Record<string, unknown> = {};
-    const legacy: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(current.values)) {
-      if (activeKeys.has(key)) merged[key] = value;
-      else legacy[key] = value;
-    }
+    const { active: merged, legacy } = activeAndLegacyValues(object, current.values);
     for (const [key, value] of Object.entries(patch)) {
       if (value === null) delete merged[key];
       else merged[key] = value;
@@ -327,43 +268,22 @@ export function updateRecord(
         updated.id,
       );
 
-    const searchParts: string[] = [];
-    for (const field of activeFields) {
-      if (Object.hasOwn(values, field.key)) flattenSearchValue(values[field.key], searchParts);
-    }
     database.prepare('DELETE FROM records_fts WHERE record_id = ?').run(updated.id);
-    database
-      .prepare(
-        'INSERT INTO records_fts(record_id, object_key, display_name, content) VALUES (?, ?, ?, ?)',
-      )
-      .run(updated.id, object.key, updated.displayName, searchParts.join(' '));
-
-    const metadata: Record<string, unknown> = {
-      operation: 'record.update',
-      requestHash: hash,
-      result: updated,
-      cliVersion: options.cliVersion,
-      workingDirectory: process.cwd(),
-    };
-    if (process.env.PI_SESSION_ID) metadata.piSessionId = process.env.PI_SESSION_ID;
-    database
-      .prepare(`
-        INSERT INTO events(
-          id, subject_type, subject_id, action, actor, source, idempotency_key,
-          before_json, after_json, metadata_json, created_at
-        ) VALUES (?, 'record', ?, 'updated', ?, ?, ?, ?, ?, ?, ?)
-      `)
-      .run(
-        randomUUID(),
-        updated.id,
-        options.actor,
-        options.source ?? null,
-        options.idempotencyKey ?? null,
-        JSON.stringify(current),
-        JSON.stringify(updated),
-        JSON.stringify(metadata),
+    insertRecordFts(database, object, updated);
+    appendMutationEvent(
+      database,
+      {
+        subjectType: 'record',
+        subjectId: updated.id,
+        action: 'updated',
+        operation: 'record.update',
+        requestHash: hash,
+        before: current,
+        result: updated,
         timestamp,
-      );
+      },
+      options,
+    );
 
     return { ...updated, replayed: false };
   });

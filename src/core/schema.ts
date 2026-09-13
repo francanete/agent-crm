@@ -4,6 +4,7 @@ import { inImmediateTransaction } from '../db/transaction.js';
 import { canonicalJson, requestHash } from './canonical.js';
 import { AppError } from './errors.js';
 import { appendMutationEvent } from './events.js';
+import { flattenSearchValue } from './fts.js';
 import { findIdempotentReplay } from './idempotency.js';
 import { now } from './time.js';
 import type { FieldDefinition, FieldFormat, FieldType, ObjectDefinition } from './types.js';
@@ -180,37 +181,6 @@ function requireLabel(value: string, name: string): string {
   return label;
 }
 
-function appendSchemaEvent(
-  database: DatabaseSync,
-  subjectType: 'object' | 'field',
-  subjectId: string,
-  actor: string,
-  source: string | undefined,
-  idempotencyKey: string | undefined,
-  after: unknown,
-  metadata: Record<string, unknown>,
-  timestamp: string,
-): void {
-  database
-    .prepare(`
-      INSERT INTO events(
-        id, subject_type, subject_id, action, actor, source, idempotency_key,
-        before_json, after_json, metadata_json, created_at
-      ) VALUES (?, ?, ?, 'created', ?, ?, ?, NULL, ?, ?, ?)
-    `)
-    .run(
-      randomUUID(),
-      subjectType,
-      subjectId,
-      actor,
-      source ?? null,
-      idempotencyKey ?? null,
-      JSON.stringify(after),
-      JSON.stringify(metadata),
-      timestamp,
-    );
-}
-
 export function addObject(
   database: DatabaseSync,
   input: AddObjectInput,
@@ -275,23 +245,19 @@ export function addObject(
       .run(randomUUID(), objectId, input.titleFieldKey, titleFieldLabel, timestamp, timestamp);
 
     const object = describeSchema(database, input.key)[0] as ObjectDefinition;
-    const metadata = {
-      operation: 'schema.object.add',
-      requestHash: hash,
-      result: object,
-      cliVersion: options.cliVersion,
-      workingDirectory: process.cwd(),
-    };
-    appendSchemaEvent(
+    appendMutationEvent(
       database,
-      'object',
-      object.id,
-      options.actor,
-      options.source,
-      options.idempotencyKey,
-      object,
-      metadata,
-      timestamp,
+      {
+        subjectType: 'object',
+        subjectId: object.id,
+        action: 'created',
+        operation: 'schema.object.add',
+        requestHash: hash,
+        before: null,
+        result: object,
+        timestamp,
+      },
+      options,
     );
     return { ...object, replayed: false };
   });
@@ -428,23 +394,19 @@ export function addField(
       )
       .run(timestamp, object.id);
 
-    const metadata = {
-      operation: 'schema.field.add',
-      requestHash: hash,
-      result: field,
-      cliVersion: options.cliVersion,
-      workingDirectory: process.cwd(),
-    };
-    appendSchemaEvent(
+    appendMutationEvent(
       database,
-      'field',
-      field.id,
-      options.actor,
-      options.source,
-      options.idempotencyKey,
-      field,
-      metadata,
-      timestamp,
+      {
+        subjectType: 'field',
+        subjectId: field.id,
+        action: 'created',
+        operation: 'schema.field.add',
+        requestHash: hash,
+        before: null,
+        result: field,
+        timestamp,
+      },
+      options,
     );
     return { ...field, replayed: false };
   });
@@ -472,19 +434,6 @@ function fieldDefinition(object: ObjectDefinition, fieldKey: string): FieldDefin
     });
   }
   return field;
-}
-
-function flattenSearchValue(value: unknown, output: string[], depth = 0): void {
-  if (depth > 20 || value === null || value === undefined) return;
-  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
-    output.push(String(value));
-  } else if (Array.isArray(value)) {
-    for (const entry of value) flattenSearchValue(entry, output, depth + 1);
-  } else if (typeof value === 'object') {
-    for (const entry of Object.values(value as Record<string, unknown>)) {
-      flattenSearchValue(entry, output, depth + 1);
-    }
-  }
 }
 
 function reindexObjectRecords(database: DatabaseSync, object: ObjectDefinition): void {

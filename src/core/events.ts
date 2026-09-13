@@ -13,7 +13,7 @@ export function appendMutationEvent(
   input: {
     subjectType: 'object' | 'field' | 'record' | 'relationship';
     subjectId: string;
-    action: 'created' | 'updated' | 'archived' | 'restored';
+    action: 'created' | 'updated' | 'archived' | 'restored' | 'linked';
     operation: string;
     requestHash: string;
     before: unknown;
@@ -46,7 +46,7 @@ export function appendMutationEvent(
       options.actor,
       options.source ?? null,
       options.idempotencyKey ?? null,
-      JSON.stringify(input.before),
+      input.before === null ? null : JSON.stringify(input.before),
       JSON.stringify(input.result),
       JSON.stringify(metadata),
       input.timestamp,

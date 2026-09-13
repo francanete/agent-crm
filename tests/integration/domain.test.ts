@@ -6,10 +6,11 @@ import { getContext } from '../../src/core/context.js';
 import { diagnoseDatabase } from '../../src/core/doctor.js';
 import { AppError } from '../../src/core/errors.js';
 import { getEvent, getHistory } from '../../src/core/history.js';
+import { createExport } from '../../src/core/portability.js';
 import { listRecords } from '../../src/core/query.js';
-import { createRecord, getRecord, updateRecord } from '../../src/core/records.js';
+import { archiveRecord, createRecord, getRecord, updateRecord } from '../../src/core/records.js';
 import { addRelationship, listRelationships } from '../../src/core/relationships.js';
-import { addField, addObject, describeSchema } from '../../src/core/schema.js';
+import { addField, addObject, archiveField, describeSchema } from '../../src/core/schema.js';
 import { searchRecords } from '../../src/core/search.js';
 import { initializeDatabase, openDatabase, openReadOnlyDatabase } from '../../src/db/index.js';
 
@@ -149,6 +150,126 @@ describe('database domain slices', () => {
         count: number;
       };
       expect(count.count).toBe(1);
+    } finally {
+      database.close();
+    }
+  });
+
+  it.each(['archived field', 'new default'])('replays original creation after a %s', (change) => {
+    const file = temporaryDatabase();
+    initializeDatabase(file);
+    const database = openDatabase(file);
+    const mutation = { actor: 'test', source: 'fixture', cliVersion: 'test' };
+    const options = { ...mutation, idempotencyKey: 'original-person' };
+    const values = { name: 'Ana', notes: 'Original note' };
+
+    try {
+      const first = createRecord(database, 'person', values, options);
+      updateRecord(database, first.id, { name: 'Updated Ana' }, mutation);
+      archiveRecord(database, first.id, mutation);
+      if (change === 'archived field') archiveField(database, 'person', 'notes', mutation);
+      else
+        addField(
+          database,
+          {
+            objectKey: 'person',
+            key: 'priority',
+            label: 'Priority',
+            type: 'text',
+            required: false,
+            defaultValue: 'normal',
+          },
+          mutation,
+        );
+      const before = createExport(database).data;
+      expect(
+        createRecord(database, 'person', { notes: values.notes, name: values.name }, options),
+      ).toEqual({ ...first, replayed: true });
+      expect(() =>
+        createRecord(database, 'person', { ...values, name: 'Bea' }, options),
+      ).toThrowError(expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }));
+      expect(() => createRecord(database, 'organization', values, options)).toThrowError(
+        expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }),
+      );
+      for (const override of [{ actor: 'other' }, { source: 'other' }]) {
+        expect(() =>
+          createRecord(database, 'person', values, { ...options, ...override }),
+        ).toThrowError(expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }));
+      }
+      expect(() => updateRecord(database, first.id, values, options)).toThrowError(
+        expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }),
+      );
+      expect(createExport(database).data).toEqual(before);
+      if (change === 'archived field') {
+        expect(() => createRecord(database, 'person', values, mutation)).toThrowError(
+          expect.objectContaining({ code: 'UNKNOWN_FIELD' }),
+        );
+      } else {
+        expect(createRecord(database, 'person', values, mutation).values.priority).toBe('normal');
+      }
+    } finally {
+      database.close();
+    }
+  });
+
+  it('compares supplied create intent independently of defaults and value normalization', () => {
+    const file = temporaryDatabase();
+    initializeDatabase(file);
+    const database = openDatabase(file);
+    const mutation = { actor: 'test', cliVersion: 'test' };
+    const options = { ...mutation, idempotencyKey: 'followup-intent' };
+    const values = { title: 'Call Ana', due_at: '2026-09-05T13:00:00+01:00', notes: null };
+
+    try {
+      const first = createRecord(database, 'followup', values, options);
+      expect(first.values).toEqual({
+        title: values.title,
+        due_at: '2026-09-05T12:00:00.000Z',
+        status: 'open',
+      });
+      expect(createRecord(database, 'followup', values, options)).toEqual({
+        ...first,
+        replayed: true,
+      });
+      const before = createExport(database).data;
+      for (const changed of [
+        { ...values, status: 'open' },
+        { title: values.title, due_at: values.due_at },
+        { ...values, due_at: '2026-09-05T12:00:00.000Z' },
+      ]) {
+        expect(() => createRecord(database, 'followup', changed, options)).toThrowError(
+          expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }),
+        );
+      }
+      expect(createExport(database).data).toEqual(before);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('replays a link after endpoint archival without creating or restoring anything', () => {
+    const file = temporaryDatabase();
+    initializeDatabase(file);
+    const database = openDatabase(file);
+    const mutation = { actor: 'test', cliVersion: 'test' };
+    const options = { ...mutation, idempotencyKey: 'original-link' };
+
+    try {
+      const person = createRecord(database, 'person', { name: 'Ana' }, mutation);
+      const organization = createRecord(database, 'organization', { name: 'Acme' }, mutation);
+      const first = addRelationship(database, person.id, 'works_at', organization.id, options);
+      archiveRecord(database, organization.id, mutation);
+      const before = createExport(database).data;
+      expect(
+        addRelationship(database, person.id.slice(0, 8), 'works_at', organization.id, options),
+      ).toEqual({ ...first, replayed: true });
+      expect(() =>
+        addRelationship(database, person.id, 'knows', organization.id, options),
+      ).toThrowError(expect.objectContaining({ code: 'IDEMPOTENCY_CONFLICT' }));
+      expect(() =>
+        addRelationship(database, person.id, 'works_at', organization.id, mutation),
+      ).toThrowError(expect.objectContaining({ code: 'RECORD_ARCHIVED' }));
+      expect(createExport(database).data).toEqual(before);
     } finally {
       database.close();
     }
@@ -295,6 +416,80 @@ describe('database domain slices', () => {
     }
   });
 
+  it.each([
+    {
+      object: 'person',
+      field: 'email',
+      value: 'ana@example.com',
+      contains: '@EXAMPLE.COM',
+      prefix: 'ANA@',
+    },
+    {
+      object: 'organization',
+      field: 'website',
+      value: 'https://example.com',
+      contains: 'EXAMPLE',
+      prefix: 'HTTPS://',
+    },
+  ])('accepts partial text filters on $field without weakening full-value validation', (input) => {
+    const file = temporaryDatabase();
+    initializeDatabase(file);
+    const database = openDatabase(file);
+    const mutation = { actor: 'test', cliVersion: 'test' };
+    const options = { limit: 50, offset: 0, includeArchived: false };
+
+    try {
+      const record = createRecord(
+        database,
+        input.object,
+        { name: 'Match', [input.field]: input.value },
+        mutation,
+      );
+      createRecord(database, input.object, { name: 'Missing value' }, mutation);
+      for (const [op, value] of [
+        ['contains', input.contains],
+        ['starts_with', input.prefix],
+      ]) {
+        expect(
+          listRecords(database, input.object, {
+            ...options,
+            filter: { field: input.field, op, value },
+          }).records.map((result) => result.id),
+        ).toEqual([record.id]);
+        for (const invalid of [42, null, false, ['text'], {}]) {
+          expect(() =>
+            listRecords(database, input.object, {
+              ...options,
+              filter: { field: input.field, op, value: invalid },
+            }),
+          ).toThrowError(expect.objectContaining({ code: 'INVALID_FIELD_VALUE' }));
+        }
+      }
+      for (const op of ['eq', 'neq', 'in']) {
+        expect(() =>
+          listRecords(database, input.object, {
+            ...options,
+            filter: {
+              field: input.field,
+              op,
+              value: op === 'in' ? [input.contains] : input.contains,
+            },
+          }),
+        ).toThrowError(expect.objectContaining({ code: 'INVALID_FIELD_VALUE' }));
+      }
+      expect(() =>
+        createRecord(
+          database,
+          input.object,
+          { name: 'Invalid', [input.field]: input.contains },
+          mutation,
+        ),
+      ).toThrowError(expect.objectContaining({ code: 'INVALID_FIELD_VALUE' }));
+    } finally {
+      database.close();
+    }
+  });
+
   it('rejects unknown fields, incompatible operators, and excessive filter depth', () => {
     const databasePath = temporaryDatabase();
     initializeDatabase(databasePath);
@@ -410,6 +605,64 @@ describe('database domain slices', () => {
           mutation,
         ),
       ).toThrowError(/required field cannot be added/);
+    } finally {
+      database.close();
+    }
+  });
+
+  it('keeps audit snapshots and replay results consistent across mutation types', () => {
+    const file = temporaryDatabase();
+    initializeDatabase(file);
+    const database = openDatabase(file);
+    const mutation = { actor: 'test', source: 'audit fixture', cliVersion: 'test' };
+    try {
+      addObject(
+        database,
+        {
+          key: 'job',
+          label: 'Job',
+          pluralLabel: 'Jobs',
+          titleFieldKey: 'name',
+          titleFieldLabel: 'Name',
+        },
+        mutation,
+      );
+      addField(
+        database,
+        {
+          objectKey: 'job',
+          key: 'price',
+          label: 'Price',
+          type: 'number',
+          required: false,
+        },
+        mutation,
+      );
+      const job = createRecord(database, 'job', { name: 'Repair', price: 100 }, mutation);
+      const person = createRecord(database, 'person', { name: 'Ana' }, mutation);
+      updateRecord(database, job.id, { price: 120 }, mutation);
+      addRelationship(database, job.id, 'for_customer', person.id, mutation);
+      const events = createExport(database).data.events;
+      expect(events.map((event) => [event.subjectType, event.action])).toEqual([
+        ['object', 'created'],
+        ['field', 'created'],
+        ['record', 'created'],
+        ['record', 'created'],
+        ['record', 'updated'],
+        ['relationship', 'linked'],
+      ]);
+      for (const event of events) {
+        expect(event).toMatchObject({ actor: mutation.actor, source: mutation.source });
+        expect(event.metadata).toMatchObject({
+          cliVersion: mutation.cliVersion,
+          workingDirectory: process.cwd(),
+          requestHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        });
+        expect(event.metadata.result).toEqual(event.after);
+        if (event.action === 'updated')
+          expect(event.before).toMatchObject({ id: job.id, values: { price: 100 } });
+        else expect(event.before).toBeNull();
+      }
     } finally {
       database.close();
     }

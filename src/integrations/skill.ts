@@ -377,6 +377,11 @@ export function uninstallSkill(options: SkillIntegrationOptions = {}): SkillInte
   const force = options.force === true;
 
   try {
+    if (hasUnsafePathComponent(target.directory)) {
+      throw new AppError('INTEGRATION_CONFLICT', 'Skill destination has an unsafe path component', {
+        path: target.directory,
+      });
+    }
     try {
       const directoryStat = fs.lstatSync(target.directory);
       if (!directoryStat.isDirectory() || directoryStat.isSymbolicLink()) {

@@ -16,7 +16,11 @@ function entryPath(file: string): string {
   // rather than writing through it. This also works for absent SQLite sidecars.
   const directory = ifPresent(() => fs.realpathSync.native(path.dirname(file)));
   const entry = directory ? path.join(directory, path.basename(file)) : file;
-  return process.platform === 'win32' ? entry.toLowerCase() : entry;
+  // macOS commonly uses case-insensitive APFS. Reserve case variants even on
+  // case-sensitive macOS volumes: absent sidecars have no file identity to check.
+  return process.platform === 'win32' || process.platform === 'darwin'
+    ? entry.toLowerCase()
+    : entry;
 }
 
 export function assertSafeExportDestination(databasePath: string, output: string): void {

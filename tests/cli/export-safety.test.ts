@@ -80,6 +80,25 @@ function preserved(source: ReturnType<typeof fixture>) {
 }
 
 describe('export database destination protection', () => {
+  it.skipIf(process.platform !== 'darwin' && process.platform !== 'win32')(
+    'reserves mixed-case absent sidecars on macOS and Windows',
+    () => {
+      const source = fixture();
+      connections.splice(connections.indexOf(source.database), 1);
+      source.database.close();
+      const before = fs.readFileSync(source.databasePath);
+      for (const suffix of ['-WAL', '-SHM', '-JOURNAL']) {
+        const output = path.join(source.alias, `CRM.DB${suffix}`);
+        expect(fs.existsSync(output)).toBe(false);
+        expect(run(source.databasePath, output)).toMatchObject({
+          status: 2,
+          envelope: { ok: false, error: { code: 'VALIDATION_ERROR' } },
+        });
+        expect(fs.existsSync(output)).toBe(false);
+      }
+      expect(fs.readFileSync(source.databasePath)).toEqual(before);
+    },
+  );
   it.each(['-wal', '-shm', '-journal'])(
     'reserves absent sidecar paths through directory aliases: %s',
     (suffix) => {

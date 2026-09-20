@@ -22,6 +22,14 @@ Use `--without-history` to omit events. Use `--force` only to replace an existin
 file. Export files are created with mode `0600` on POSIX systems. Export reads from one SQLite
 snapshot, so its logical contents are consistent.
 
+Export rejects the selected database and its SQLite `-wal`, `-shm`, and `-journal` paths,
+including directory symlink/junction aliases, the real database behind a file symlink, and
+existing hard links. Sidecar names are reserved even when those files are absent. On macOS
+and Windows, case variants are conservatively reserved even on case-sensitive volumes. `--force`
+does not bypass this protection. A separate final output symlink is replaced as a directory
+entry, not followed; its referent is left untouched. These checks assume destination
+directories are not concurrently changed by another process.
+
 The top-level contract is:
 
 ```json

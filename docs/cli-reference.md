@@ -676,6 +676,8 @@ agentcrm integration uninstall-skill --destination ~/.hermes/skills --json
 
 Uninstall removes only its managed Skill. A locally modified Skill requires `--force`. Skill and npm uninstall never remove the CRM database.
 
+Uninstall rejects symbolic links or Windows junctions in the destination root, its ancestors, or the `agentcrm` directory with `INTEGRATION_CONFLICT`, even with `--force`. The standard macOS `/tmp`, `/var`, and `/etc` aliases to `/private/...` remain permitted. An absent Skill at a safe path is a no-op. A final `SKILL.md` link still requires `--force` to unlink the link itself; a linked manifest is not trusted as ownership evidence, and removing it never removes its referent. These preflight checks do not protect against hostile concurrent path replacement; retain control of destination directories.
+
 Restart or start a fresh agent session after changing Skills so the host reloads discovery state.
 
 ## Idempotent mutations

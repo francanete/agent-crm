@@ -26,6 +26,7 @@ export function hasUnsafePathComponent(target: string): boolean {
     if (stat.isSymbolicLink()) {
       if (
         process.platform === 'darwin' &&
+        macosSystemAliases.has(current) &&
         macosSystemAliases.get(current) === fs.realpathSync.native(current)
       ) {
         continue;

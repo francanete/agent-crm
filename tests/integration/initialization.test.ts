@@ -7,7 +7,7 @@ import { promisify } from 'node:util';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createExport } from '../../src/core/portability.js';
 import { createRecord } from '../../src/core/records.js';
-import { initializeDatabase, openDatabase } from '../../src/db/index.js';
+import { initializeDatabase, openDatabase, openReadOnlyDatabase } from '../../src/db/index.js';
 
 const directories: string[] = [];
 const run = promisify(execFile);
@@ -83,6 +83,89 @@ describe('initialization ownership', () => {
     } finally {
       writer?.close();
     }
+  });
+
+  it.each([5, 261])('retries transient SQLite busy validation errors (%i)', (errcode) => {
+    const file = temporaryDatabase();
+    initializeDatabase(file);
+    const before = fs.readFileSync(file);
+    const prepare = DatabaseSync.prototype.prepare;
+    let failures = 0;
+    const fault = vi.spyOn(DatabaseSync.prototype, 'prepare').mockImplementation(function (
+      this: DatabaseSync,
+      sql,
+    ) {
+      if (sql.includes('sqlite_master') && failures++ < 2) {
+        expect(this.prepare('PRAGMA busy_timeout').get()).toMatchObject({ timeout: 5000 });
+        throw Object.assign(new Error('database is locked'), { code: 'ERR_SQLITE_ERROR', errcode });
+      }
+      return prepare.call(this, sql);
+    });
+    expect(initializeDatabase(file)).toMatchObject({
+      created: false,
+      migrated: false,
+      seeded: false,
+    });
+    expect(failures).toBe(3);
+    for (const open of [openReadOnlyDatabase, openDatabase]) {
+      failures = 0;
+      const connection = open(file);
+      connection.close();
+      expect(failures).toBe(3);
+    }
+    fault.mockRestore();
+    expect(fs.readFileSync(file)).toEqual(before);
+    expect(fs.readdirSync(path.dirname(file))).toEqual(['crm.db']);
+  });
+
+  it('bounds persistent busy validation retries without reporting an invalid database', () => {
+    const file = temporaryDatabase();
+    initializeDatabase(file);
+    const before = fs.readFileSync(file);
+    let elapsed = 0;
+    vi.spyOn(performance, 'now').mockImplementation(() => elapsed);
+    const wait = vi.spyOn(Atomics, 'wait').mockImplementation((_array, _index, _value, timeout) => {
+      elapsed += timeout ?? 0;
+      return 'timed-out';
+    });
+    const prepare = DatabaseSync.prototype.prepare;
+    vi.spyOn(DatabaseSync.prototype, 'prepare').mockImplementation(function (
+      this: DatabaseSync,
+      sql,
+    ) {
+      if (sql.includes('sqlite_master')) {
+        throw Object.assign(new Error('database is locked'), {
+          code: 'ERR_SQLITE_ERROR',
+          errcode: 261,
+        });
+      }
+      return prepare.call(this, sql);
+    });
+    expect(() => initializeDatabase(file)).toThrowError(
+      expect.objectContaining({ code: 'DATABASE_ERROR' }),
+    );
+    expect(wait).toHaveBeenCalled();
+    expect(elapsed).toBe(5000);
+    expect(fs.readFileSync(file)).toEqual(before);
+  });
+
+  it('does not retry non-busy SQLite validation errors', () => {
+    const file = temporaryDatabase();
+    initializeDatabase(file);
+    const before = fs.readFileSync(file);
+    const wait = vi.spyOn(Atomics, 'wait');
+    const fault = vi.spyOn(DatabaseSync.prototype, 'prepare').mockImplementation(() => {
+      throw Object.assign(new Error('database disk image is malformed'), {
+        code: 'ERR_SQLITE_ERROR',
+        errcode: 11,
+      });
+    });
+    expect(() => initializeDatabase(file)).toThrowError(
+      expect.objectContaining({ code: 'DATABASE_INVALID' }),
+    );
+    expect(fault).toHaveBeenCalledTimes(1);
+    expect(wait).not.toHaveBeenCalled();
+    expect(fs.readFileSync(file)).toEqual(before);
   });
 
   it('allows a clean retry after initialization fails during schema creation', () => {

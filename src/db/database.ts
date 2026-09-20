@@ -35,13 +35,37 @@ export interface InitializationResult {
 }
 
 function validateExistingFile(database: DatabaseSync, databasePath: string): number {
-  try {
-    return validateExistingDatabase(database);
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new AppError('DATABASE_INVALID', 'The file is not a compatible Agent CRM database', {
-      database: databasePath,
-    });
+  // Also covers the CLI's schema read, which reopens the database after init.
+  database.exec('PRAGMA busy_timeout = 5000');
+  const deadline = performance.now() + 5000;
+  const sleeper = new Int32Array(new SharedArrayBuffer(4));
+  for (;;) {
+    try {
+      return validateExistingDatabase(database);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      const sqliteError = error as { code?: string; errcode?: number } | null;
+      if (
+        sqliteError?.code === 'ERR_SQLITE_ERROR' &&
+        typeof sqliteError.errcode === 'number' &&
+        (sqliteError.errcode & 0xff) === 5
+      ) {
+        // WAL recovery/last-close contention can bypass SQLite's busy handler.
+        // Retry only read-only validation, including extended SQLITE_BUSY codes;
+        // never replay migrations or seeding and never treat contention as corruption.
+        const remaining = deadline - performance.now();
+        if (remaining > 0) {
+          Atomics.wait(sleeper, 0, 0, Math.min(10, remaining));
+          continue;
+        }
+        throw new AppError('DATABASE_ERROR', 'The database is busy; retry initialization', {
+          database: databasePath,
+        });
+      }
+      throw new AppError('DATABASE_INVALID', 'The file is not a compatible Agent CRM database', {
+        database: databasePath,
+      });
+    }
   }
 }
 

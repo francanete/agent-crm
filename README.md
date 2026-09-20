@@ -77,7 +77,7 @@ agentcrm doctor --json
 | --- | --- | --- |
 | Pi | `~/.agents/skills` | Start a fresh Pi session |
 | Claude Code | `$CLAUDE_CONFIG_DIR/skills`, or `~/.claude/skills` | Start a fresh Claude Code session |
-| Hermes | `~/.hermes/skills` | Restart the gateway or start a fresh session |
+| Hermes | `$HERMES_HOME/skills`, or `~/.hermes/skills` | Restart the gateway or start a fresh session |
 
 The `agentcrm` executable must be visible on the agent or gateway process `PATH`. Setup does not edit `PATH`, shell profiles, or service files, and never restarts a host automatically.
 

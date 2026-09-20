@@ -117,8 +117,21 @@ export const HOST_ADAPTERS: readonly HostAdapter[] = [
     key: 'hermes',
     displayName: 'Hermes Agent',
     support: 'verified',
-    detect: (context) => detection(context, 'hermes', path.join(context.home, '.hermes')),
-    skillsRoot: (context) => path.join(context.home, '.hermes', 'skills'),
+    detect: (context) =>
+      detection(
+        context,
+        'hermes',
+        context.env.HERMES_HOME
+          ? absoluteHomePath(context.home, context.env.HERMES_HOME)
+          : path.join(context.home, '.hermes'),
+      ),
+    skillsRoot: (context) =>
+      path.join(
+        context.env.HERMES_HOME
+          ? absoluteHomePath(context.home, context.env.HERMES_HOME)
+          : path.join(context.home, '.hermes'),
+        'skills',
+      ),
     restartGuidance: 'Restart the Hermes gateway or start a fresh Hermes session.',
     sharedGatewayWarning:
       'This host may serve multiple chat users. Agent CRM uses one local database for this OS user; it does not create separate CRM databases per chat identity.',

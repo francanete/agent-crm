@@ -37,6 +37,50 @@ describe('host adapters', () => {
     ).toBe(path.join(home, 'custom-claude', 'skills'));
   });
 
+  it('resolves Hermes profile roots and detects only the active state directory', () => {
+    const directory = temporaryDirectory();
+    const home = path.join(directory, 'home');
+    const adapter = getHostAdapter('hermes');
+    if (!adapter) throw new Error('Missing Hermes adapter');
+    const defaultRoot = path.join(home, '.hermes');
+    fs.mkdirSync(defaultRoot, { recursive: true });
+
+    try {
+      for (const value of [undefined, '']) {
+        const context = hostDetectionContext(process.platform, { HERMES_HOME: value }, home);
+        expect(adapter.skillsRoot(context)).toBe(path.join(defaultRoot, 'skills'));
+        expect(adapter.detect(context).evidence).toEqual(['state-directory']);
+      }
+      for (const value of [
+        path.join(directory, 'profile with spaces'),
+        '~/.hermes/profiles/work',
+        '~\\.hermes\\profiles\\work',
+        '~',
+        path.relative(process.cwd(), path.join(directory, 'relative-profile')),
+      ]) {
+        const root =
+          value === '~'
+            ? home
+            : value.startsWith('~')
+              ? path.join(home, value.slice(2))
+              : path.resolve(value);
+        const context = hostDetectionContext(process.platform, { HERMES_HOME: value }, home);
+        expect(adapter.skillsRoot(context)).toBe(path.join(root, 'skills'));
+        if (root !== home) {
+          expect(adapter.detect(context)).toEqual({ state: 'not-detected', evidence: [] });
+        }
+        fs.mkdirSync(root, { recursive: true });
+        expect(adapter.detect(context)).toEqual({
+          state: 'detected',
+          evidence: ['state-directory'],
+        });
+        if (root !== home) fs.rmSync(root, { recursive: true, force: true });
+      }
+    } finally {
+      fs.rmSync(directory, { recursive: true, force: true });
+    }
+  });
+
   it('groups hosts sharing a skills destination', () => {
     const root = path.resolve('host-destinations');
     const shared = path.join(root, 'shared');

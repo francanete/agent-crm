@@ -107,5 +107,7 @@ describe('Agent Skill integration', () => {
     expect(content).toContain('real-world meaning in plain language');
     expect(content).toContain('Never ask “What relationship name/type should I use?”');
     expect(content).toContain('Treat CLI JSON envelopes as private tool output');
+    expect(content).toContain('Managed database binding');
+    expect(content).toContain('agent guidance, not automatic CLI discovery');
   });
 });

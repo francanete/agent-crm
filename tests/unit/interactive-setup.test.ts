@@ -88,6 +88,12 @@ describe('interactive setup', () => {
     answerWith(['yes', 'hermes', 'yes']);
     await setup();
     expect(fs.existsSync(path.join(profile, 'skills', 'agentcrm', 'SKILL.md'))).toBe(true);
+    expect(process.stdout.write).toHaveBeenCalledWith(
+      expect.stringContaining(`Bind Skill --db guidance to ${JSON.stringify(database)}`),
+    );
+    expect(fs.readFileSync(path.join(profile, 'skills', 'agentcrm', 'SKILL.md'), 'utf8')).toContain(
+      JSON.stringify(['--db', database]),
+    );
     expect(fs.existsSync(path.join(home, '.hermes', 'skills'))).toBe(false);
   });
 

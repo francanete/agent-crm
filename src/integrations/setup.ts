@@ -50,6 +50,7 @@ export interface SetupHostPlan {
   destination: string;
   destinationKey: string;
   skillState: SkillState;
+  databaseBinding: { path: string; previousPath: string | null; notice: string };
   restartGuidance: string;
   sharedGatewayWarning?: string;
 }
@@ -185,11 +186,13 @@ function inspectHost(
   adapter: (typeof HOST_ADAPTERS)[number],
   context: ReturnType<typeof hostDetectionContext>,
   sourcePath: string | undefined,
+  databasePath: string,
 ): SetupHostPlan {
   const detection = adapter.detect(context);
   const destination = path.resolve(adapter.skillsRoot(context));
   const skill = inspectSkill({
     destination,
+    databasePath,
     ...(sourcePath === undefined ? {} : { sourcePath }),
   });
   return {
@@ -201,6 +204,12 @@ function inspectHost(
     destination,
     destinationKey: resolvedDestinationKey(destination),
     skillState: skill.state,
+    databaseBinding: {
+      path: databasePath,
+      previousPath: skill.databasePath ?? null,
+      notice:
+        'Install explicit --db guidance in this Skill only; bare CLI defaults and environment/config files are unchanged. A different previousPath will be rebound on confirmed apply.',
+    },
     restartGuidance: adapter.restartGuidance,
     ...(adapter.sharedGatewayWarning ? { sharedGatewayWarning: adapter.sharedGatewayWarning } : {}),
   };
@@ -339,6 +348,7 @@ export function applySetup(options: SetupApplyOptions): SetupApplyResult {
     try {
       const installation = skillInstaller({
         destination: group.destination,
+        databasePath: plan.database.path,
         force: options.forceSkill === true,
         ...(options.sourcePath === undefined ? {} : { sourcePath: options.sourcePath }),
       });
@@ -385,7 +395,9 @@ export function createSetupPlan(options: SetupPlanOptions = {}): SetupPlan {
   const selection = databaseSelection(options.databaseOverride, env);
   const database = inspectDatabase(databasePath, selection);
   const context = hostDetectionContext(platform, env, home);
-  const hosts = HOST_ADAPTERS.map((adapter) => inspectHost(adapter, context, options.sourcePath));
+  const hosts = HOST_ADAPTERS.map((adapter) =>
+    inspectHost(adapter, context, options.sourcePath, databasePath),
+  );
   const detectedDestinations = hosts
     .filter((host) => host.detection === 'detected')
     .map((host) => ({

@@ -61,6 +61,10 @@ agentcrm setup apply --initialize --agent pi --yes --json
 
 Database selection precedence is `--db`, then `AGENTCRM_DB`, then the platform default. See the [CLI reference](docs/cli-reference.md#database-path-precedence) for paths.
 
+Setup binds each selected installed Skill to that resolved absolute database path through explicit `--db` guidance. Preview reports the proposed and previous binding; confirmed apply can rebind an existing managed Skill. For example, use `agentcrm --db "custom data/crm.db" setup plan --json`, then the same `--db` with `setup apply --initialize --agent hermes --yes --json`. Hermes installations stay under the active `$HERMES_HOME`, including a selected profile.
+
+This binding is installation-local agent guidance, **not automatic database discovery by bare CLI commands**. Agents must supply the bound `--db` on every CRM invocation, including `doctor` and `init`. The installed instructions encode the path as JSON argument data (not shell source) to preserve spaces, quotes, backslashes, and shell metacharacters. Setup does not write environment variables, global configuration, or shell/service files. A terminal command outside that Skill still needs `--db`, `AGENTCRM_DB`, or the platform default.
+
 For an isolated trial:
 
 ```bash
@@ -87,7 +91,7 @@ For a custom or future host root, retain the manual installer:
 agentcrm integration install-skill --destination /path/to/skills --json
 ```
 
-The installer records a managed hash. It upgrades an unmodified managed copy and refuses to overwrite unowned or locally modified instructions unless force is explicit. Skill and npm uninstall never remove CRM data.
+The installer records a managed hash over the complete installed instructions. It upgrades an unmodified managed copy and refuses to overwrite unowned or locally modified instructions unless force is explicit. A fresh direct `integration install-skill` remains generic (environment/platform defaults); direct upgrades of a setup-bound Skill preserve its binding. Use setup preview and confirmed apply to change that binding. Skill and npm uninstall never remove CRM data.
 
 Hermes can serve several chat identities under one OS account. Without a future identity-to-profile mapping, every permitted gateway conversation uses the selected single local CRM. Enable it only when that shared database is appropriate.
 

@@ -102,6 +102,8 @@ Defaults are:
 
 Initialization creates parent directories and, on POSIX systems, restricts a newly created data directory to mode `0700` and the database to `0600`. Uninstalling the npm package or Agent Skill never removes the selected database.
 
+New databases are migrated and seeded in a private temporary directory beside the destination, then closed to checkpoint SQLite WAL before publication. An atomic hard link publishes the completed database without replacing an existing path. A concurrent initializer that loses publication validates and reuses the winner; failure cleanup removes only the caller's private temporary directory, never the destination or its sidecars. Existing-file validation and ordered migration rules are unchanged. This requires a filesystem with hard-link support (including ordinary Linux/macOS filesystems and Windows NTFS); unsupported filesystems fail safely rather than falling back to an overwriting rename. An interrupted process may leave a private `.agentcrm-init-*` directory, but it does not block a fresh initialization attempt.
+
 ## Logical data model
 
 ### Metadata and migrations

@@ -49,6 +49,7 @@ import { initializeDatabase, openDatabase, openReadOnlyDatabase } from '../db/in
 import { applySetup, createSetupPlan } from '../integrations/setup.js';
 import { installSkill, uninstallSkill } from '../integrations/skill.js';
 import { errorEnvelope, successEnvelope } from '../output/envelope.js';
+import { assertSafeExportDestination } from './export-safety.js';
 
 export const CLI_VERSION = packageMetadata.version;
 const MAX_VALUES_BYTES = 1024 * 1024;
@@ -939,9 +940,7 @@ export function buildProgram(): Command {
       const globals = program.opts<GlobalOptions>();
       const databasePath = resolveDatabasePath(globals.db);
       const output = path.resolve(commandOptions.output);
-      if (output === databasePath) {
-        throw new AppError('VALIDATION_ERROR', 'Export output cannot be the CRM database file');
-      }
+      assertSafeExportDestination(databasePath, output);
       const document = withReadOnlyDatabase(databasePath, (database) =>
         createExport(database, { withoutHistory: commandOptions.withoutHistory }),
       );

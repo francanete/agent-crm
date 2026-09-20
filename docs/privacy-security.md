@@ -196,7 +196,7 @@ Export protections include:
 
 - refusal to overwrite an existing target unless `--force` is supplied;
 - rejection of database and SQLite sidecar destinations, including directory aliases and existing hard links;
-- temporary-file write followed by atomic rename;
+- temporary-file write followed by atomic no-replacement hard-link publication (atomic rename for explicit `--force` replacement);
 - POSIX mode `0600`;
 - complete versioned structure;
 - explicit optional history omission.

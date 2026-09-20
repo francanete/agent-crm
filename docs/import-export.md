@@ -22,6 +22,14 @@ Use `--without-history` to omit events. Use `--force` only to replace an existin
 file. Export files are created with mode `0600` on POSIX systems. Export reads from one SQLite
 snapshot, so its logical contents are consistent.
 
+Without `--force`, a completed private temporary file is published with an atomic hard link.
+An existing destination (including a dangling symlink), even one created concurrently during
+export, is preserved and returns `EXPORT_TARGET_EXISTS`. The destination filesystem must
+support hard links; unsupported operations fail safely with the existing `DATABASE_ERROR`
+write-failure code, never an overwriting rename fallback. Failure cleanup removes only the
+exporter's own temporary file, not a competing destination. `--force` retains explicit
+replacement behavior.
+
 Export rejects the selected database and its SQLite `-wal`, `-shm`, and `-journal` paths,
 including directory symlink/junction aliases, the real database behind a file symlink, and
 existing hard links. Sidecar names are reserved even when those files are absent. On macOS

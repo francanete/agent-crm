@@ -314,8 +314,31 @@ export function writeExportFile(
   );
   let movedExisting = false;
   let installedNew = false;
+  let ownedTemporary = false;
   try {
-    fs.writeFileSync(temporary, content, { mode: 0o600, flag: 'wx' });
+    const descriptor = fs.openSync(temporary, 'wx', 0o600);
+    ownedTemporary = true;
+    try {
+      fs.writeFileSync(descriptor, content);
+    } finally {
+      fs.closeSync(descriptor);
+    }
+    if (!force) {
+      if (process.platform !== 'win32') fs.chmodSync(temporary, 0o600);
+      try {
+        // Publish the complete file atomically without replacing a concurrent winner.
+        fs.linkSync(temporary, output);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+          throw new AppError('EXPORT_TARGET_EXISTS', `Export target '${output}' already exists`, {
+            output,
+          });
+        }
+        throw error;
+      }
+      fs.unlinkSync(temporary);
+      return { output, bytes: Buffer.byteLength(content) };
+    }
     if (exists) {
       fs.renameSync(output, backup);
       movedExisting = true;
@@ -340,10 +363,12 @@ export function writeExportFile(
         recoveryPath = backup;
       }
     }
-    try {
-      fs.unlinkSync(temporary);
-    } catch {
-      // Preserve the original filesystem error.
+    if (ownedTemporary) {
+      try {
+        fs.unlinkSync(temporary);
+      } catch {
+        // Preserve the original filesystem error.
+      }
     }
     if (error instanceof AppError) throw error;
     throw new AppError('DATABASE_ERROR', 'Could not write the export file', {

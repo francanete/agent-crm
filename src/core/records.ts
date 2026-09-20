@@ -61,8 +61,8 @@ function normalizeValues(
 
   const values: Record<string, unknown> = {};
   for (const field of activeFields) {
-    let value = input[field.key];
     const supplied = Object.hasOwn(input, field.key);
+    let value = supplied ? input[field.key] : undefined;
 
     if (
       applyDefaults &&

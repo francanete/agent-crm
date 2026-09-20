@@ -304,10 +304,10 @@ describe('setup plan', () => {
       ]);
       expect(
         fs.readFileSync(path.join(home, '.agents', 'skills', 'agentcrm', 'SKILL.md'), 'utf8'),
-      ).toBe('bundled skill');
+      ).toContain('bundled skill');
       expect(
         fs.readFileSync(path.join(home, '.claude', 'skills', 'agentcrm', 'SKILL.md'), 'utf8'),
-      ).toBe('bundled skill');
+      ).toContain('bundled skill');
     } finally {
       fs.rmSync(directory, { recursive: true, force: true });
     }

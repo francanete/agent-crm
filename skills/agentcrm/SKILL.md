@@ -30,7 +30,7 @@ Use `agentcrm` as durable, structured relationship memory. The CLI is local and 
 15. Treat CLI JSON envelopes as private tool output. Never reproduce raw JSON to the user unless they explicitly request JSON or debugging details; present the result naturally using the current channel's capabilities.
 16. Report successful mutations concisely, including what was stored and any follow-up date.
 
-Respect `AGENTCRM_DB` or a user-provided `--db`; otherwise allow the CLI to use its platform default. Put global options before the command for portability:
+If this installed Skill has a **Managed database binding** section, apply its explicit `--db` arguments to every CRM command below, unless the user explicitly selects another database for that operation. The binding is agent guidance, not automatic CLI discovery. Without a managed binding, respect `AGENTCRM_DB` or a user-provided `--db`; otherwise allow the CLI to use its platform default. Put global options before the command for portability:
 
 ```bash
 agentcrm --idempotency-key <stable-retry-key> record create person --values-file - --json

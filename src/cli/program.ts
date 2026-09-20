@@ -481,6 +481,9 @@ async function runInteractiveSetup(globals: GlobalOptions): Promise<void> {
   );
   for (const host of selected) {
     process.stdout.write(`  - Install the Skill for ${host.displayName} at ${host.destination}\n`);
+    process.stdout.write(
+      `    Bind Skill --db guidance to ${JSON.stringify(host.databaseBinding.path)} (previous: ${JSON.stringify(host.databaseBinding.previousPath)}).\n    ${host.databaseBinding.notice}\n`,
+    );
   }
   if (selected.length === 0) process.stdout.write('  - Install no Agent Skills\n');
   if (!(await askYesNo('Apply these actions?', false))) {
@@ -507,7 +510,9 @@ async function runInteractiveSetup(globals: GlobalOptions): Promise<void> {
       process.stdout.write(`  - ${nextStep.action}\n`);
     }
   }
-  process.stdout.write('Run `agentcrm doctor` to inspect the CRM database.\n');
+  process.stdout.write(
+    'Run agentcrm with --db set to the database above before doctor to inspect this CRM; bare CLI defaults are unchanged.\n',
+  );
 }
 
 function mutationOptions(globals: GlobalOptions) {

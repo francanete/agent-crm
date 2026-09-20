@@ -14,7 +14,19 @@ const temporaryRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'agentcrm-package-sm
 const packageDirectory = path.join(temporaryRoot, 'package');
 const installDirectory = path.join(temporaryRoot, 'install');
 const dataDirectory = path.join(temporaryRoot, 'data with spaces');
-const setupDatabase = path.join(temporaryRoot, 'setup data', 'crm.db');
+const setupDatabase = path.join(temporaryRoot, "setup $data & 'quoted'", 'crm.db');
+const home = path.join(temporaryRoot, 'home');
+const hermesProfile = path.join(home, '.hermes', 'profiles', 'work');
+const cliEnv = {
+  ...process.env,
+  HOME: home,
+  USERPROFILE: home,
+  HERMES_HOME: hermesProfile,
+  CLAUDE_CONFIG_DIR: path.join(home, '.claude'),
+  XDG_DATA_HOME: path.join(home, 'data'),
+  LOCALAPPDATA: path.join(home, 'data'),
+  AGENTCRM_DB: path.join(home, 'unselected.db'),
+};
 const database = path.join(dataDirectory, 'crm.db');
 const restoredDatabase = path.join(dataDirectory, 'restored.db');
 const exportFile = path.join(temporaryRoot, 'backup.json');
@@ -51,6 +63,7 @@ function installPackage(tarball) {
 function runCli(args, input) {
   return execFileSync(process.execPath, [cliPath, ...args], {
     encoding: 'utf8',
+    env: cliEnv,
     input,
     stdio: ['pipe', 'pipe', 'pipe'],
   });
@@ -86,11 +99,24 @@ try {
     'setup',
     'apply',
     '--initialize',
-    '--no-skill',
+    '--agent',
+    'hermes',
     '--yes',
   ]);
   assert.equal(setupApplied.database.action, 'initialized');
   assert.ok(fs.existsSync(setupDatabase));
+  const boundSkill = path.join(hermesProfile, 'skills', 'agentcrm', 'SKILL.md');
+  const boundContent = fs.readFileSync(boundSkill, 'utf8');
+  const binding = JSON.parse(/```json\n([^\n]+)\n```/.exec(boundContent)[1]);
+  assert.deepEqual(binding, ['--db', setupDatabase]);
+  const boundDoctor = JSON.parse(runCli([...binding, 'doctor', '--json']));
+  assert.equal(boundDoctor.ok, true);
+  assert.equal(boundDoctor.meta.database, setupDatabase);
+  assert.equal(boundDoctor.data.healthy, true);
+  assert.equal(fs.existsSync(cliEnv.AGENTCRM_DB), false);
+  assert.equal(fs.existsSync(path.join(home, '.hermes', 'skills')), false);
+  const repeatedSetup = crm(setupDatabase, ['setup', 'apply', '--agent', 'hermes', '--yes']);
+  assert.equal(repeatedSetup.skillInstallations[0].changed, false);
 
   assert.equal(crm(database, ['init']).created, true);
   const person = crm(database, [

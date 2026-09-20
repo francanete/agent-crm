@@ -15,12 +15,15 @@ interface ManagedManifest {
   owner: 'agentcrm';
   skill: 'agentcrm';
   sha256: string;
+  databasePath?: string;
 }
 
 export interface SkillIntegrationOptions {
   destination?: string;
   force?: boolean;
   sourcePath?: string;
+  /** Setup's resolved database; omitted direct installs preserve an existing managed binding. */
+  databasePath?: string;
 }
 
 export interface SkillIntegrationResult {
@@ -45,6 +48,7 @@ export interface SkillInspection {
   skill: string;
   manifest: string;
   state: SkillState;
+  databasePath?: string;
 }
 
 function expandHome(value: string): string {
@@ -93,7 +97,7 @@ function targetPaths(destination?: string): {
   };
 }
 
-function readManagedHash(manifestPath: string): string | undefined {
+function readManagedManifest(manifestPath: string): ManagedManifest | undefined {
   try {
     const stat = fs.lstatSync(manifestPath);
     if (!stat.isFile()) return undefined;
@@ -103,14 +107,56 @@ function readManagedHash(manifestPath: string): string | undefined {
       value.owner === 'agentcrm' &&
       value.skill === 'agentcrm' &&
       typeof value.sha256 === 'string' &&
-      /^[0-9a-f]{64}$/.test(value.sha256)
+      /^[0-9a-f]{64}$/.test(value.sha256) &&
+      (value.databasePath === undefined ||
+        (typeof value.databasePath === 'string' && path.isAbsolute(value.databasePath)))
     ) {
-      return value.sha256;
+      return value as ManagedManifest;
     }
   } catch {
     return undefined;
   }
   return undefined;
+}
+
+function readManagedHash(manifestPath: string): string | undefined {
+  return readManagedManifest(manifestPath)?.sha256;
+}
+
+function skillContent(source: string, databasePath?: string): Buffer {
+  const content = fs.readFileSync(source);
+  if (databasePath === undefined) return content;
+  // JSON is data, not a shell command. Escape Markdown delimiters even inside the JSON string.
+  const args = JSON.stringify(['--db', databasePath]).replace(
+    /[`<>]/g,
+    (character) => `\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`,
+  );
+  const binding = [
+    '## Managed database binding',
+    '',
+    'This installation selects a local database. For every CRM invocation, insert these two',
+    'arguments immediately after agentcrm and before the command (including doctor and init):',
+    '',
+    '```json',
+    args,
+    '```',
+    '',
+    'This JSON array is literal argument data, not shell source. Decode it and pass the path',
+    'as one argument using an argv-capable process tool with shell execution disabled.',
+    'On Windows, use node with the resolved agentcrm CLI .js entry point rather than a .cmd',
+    'shell shim. If only a shell tool is available, quote for that specific shell; never',
+    'paste the JSON as shell syntax or interpolate the path into executable code.',
+    'Apply this binding to all examples below; it overrides their generic environment/default',
+    'guidance unless the user explicitly selects another database for an operation.',
+    'If this database is unavailable, report the error; do not silently use another database.',
+    'This is installation-local agent guidance: it does not change bare CLI database discovery,',
+    'set environment variables, or separate data by chat identity. Rebinding this installation',
+    'requires administrator setup preview and consent.',
+    '',
+  ].join('\n');
+  const text = content.toString('utf8');
+  const frontmatter = /^---\r?\n[\s\S]*?\r?\n---\r?\n/.exec(text)?.[0] ?? '';
+  return Buffer.from(`${frontmatter}\n${binding}\n${text.slice(frontmatter.length)}`);
 }
 
 function atomicWrite(file: string, content: Buffer | string, mode: number): void {
@@ -170,7 +216,6 @@ function ensureSafeTargetDirectory(root: string, directory: string): void {
 export function inspectSkill(options: SkillIntegrationOptions = {}): SkillInspection {
   const target = targetPaths(options.destination);
   const source = options.sourcePath ?? bundledSkillPath();
-  const sourceHash = hash(fs.readFileSync(source));
 
   try {
     if (hasUnsafePathComponent(target.skill) || hasUnsafePathComponent(target.manifest)) {
@@ -226,15 +271,20 @@ export function inspectSkill(options: SkillIntegrationOptions = {}): SkillInspec
 
   try {
     const existingHash = hash(fs.readFileSync(target.skill));
-    const managedHash = readManagedHash(target.manifest);
+    const managed = readManagedManifest(target.manifest);
+    const managedHash = managed?.sha256;
+    const databasePath = managed?.databasePath;
+    const binding = databasePath === undefined ? {} : { databasePath };
+    const sourceHash = hash(skillContent(source, options.databasePath ?? databasePath));
     if (existingHash === sourceHash && managedHash === sourceHash) {
-      return { ...target, state: 'managed-current' };
+      return { ...target, ...binding, state: 'managed-current' };
     }
     if (managedHash !== undefined && existingHash === managedHash) {
-      return { ...target, state: 'managed-outdated' };
+      return { ...target, ...binding, state: 'managed-outdated' };
     }
     return {
       ...target,
+      ...binding,
       state: managedHash === undefined ? 'unowned' : 'locally-modified',
     };
   } catch {
@@ -248,8 +298,6 @@ export function installSkill(options: SkillIntegrationOptions = {}): SkillIntegr
   const force = options.force === true;
 
   try {
-    const content = fs.readFileSync(source);
-    const sourceHash = hash(content);
     if (hasUnsafePathComponent(target.manifest)) {
       throw new AppError('INTEGRATION_CONFLICT', 'Skill manifest has an unsafe path component', {
         path: target.manifest,
@@ -264,6 +312,9 @@ export function installSkill(options: SkillIntegrationOptions = {}): SkillIntegr
     } catch (error) {
       if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error;
     }
+    const databasePath = options.databasePath ?? readManagedManifest(target.manifest)?.databasePath;
+    const content = skillContent(source, databasePath);
+    const sourceHash = hash(content);
     ensureSafeTargetDirectory(target.root, target.directory);
 
     let changed = true;
@@ -308,6 +359,7 @@ export function installSkill(options: SkillIntegrationOptions = {}): SkillIntegr
       owner: 'agentcrm',
       skill: 'agentcrm',
       sha256: sourceHash,
+      ...(databasePath === undefined ? {} : { databasePath }),
     };
     atomicWrite(target.manifest, `${JSON.stringify(manifest, null, 2)}\n`, 0o600);
 

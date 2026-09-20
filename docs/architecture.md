@@ -272,7 +272,7 @@ The bundled `skills/agentcrm/SKILL.md` teaches shell-capable agents safe workflo
 
 Installation copies the Skill to a selected host directory and records a managed content hash. Reinstalling the same Skill is idempotent. Upgrades replace only an unmodified managed copy. Removal or replacement of local edits requires explicit `--force`.
 
-Different hosts can use different Skill roots while sharing the same executable and database. For example, Pi can use `~/.agents/skills`, while Hermes uses `~/.hermes/skills`.
+Different hosts can use different Skill roots while sharing the same executable and database. For example, Pi can use `~/.agents/skills`, while Hermes uses `$HERMES_HOME/skills` for the active profile, falling back to `~/.hermes/skills` when `HERMES_HOME` is unset or empty.
 
 ## Diagnostics
 

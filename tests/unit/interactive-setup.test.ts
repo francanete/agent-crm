@@ -27,6 +27,7 @@ beforeEach(() => {
   vi.stubEnv('HOME', home);
   vi.stubEnv('USERPROFILE', home);
   vi.stubEnv('CLAUDE_CONFIG_DIR', path.join(home, '.claude'));
+  vi.stubEnv('HERMES_HOME', '');
   vi.stubEnv('PATH', '');
   vi.stubGlobal('process', {
     ...process,
@@ -78,6 +79,16 @@ describe('interactive setup', () => {
     );
     expect(fs.existsSync(path.join(home, '.claude', 'skills'))).toBe(false);
     expect(process.stdout.write).toHaveBeenCalledWith('Created the CRM database.\n');
+  });
+
+  it('installs into the active Hermes profile after interactive confirmation', async () => {
+    const profile = path.join(home, '.hermes', 'profiles', 'work');
+    fs.mkdirSync(profile, { recursive: true });
+    vi.stubEnv('HERMES_HOME', profile);
+    answerWith(['yes', 'hermes', 'yes']);
+    await setup();
+    expect(fs.existsSync(path.join(profile, 'skills', 'agentcrm', 'SKILL.md'))).toBe(true);
+    expect(fs.existsSync(path.join(home, '.hermes', 'skills'))).toBe(false);
   });
 
   it.each([{ answers: [''] }, { answers: ['yes', '', ''] }])(

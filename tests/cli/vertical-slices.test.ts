@@ -583,6 +583,8 @@ describe('compiled vertical-slice CLI', () => {
       ...process.env,
       HOME: home,
       USERPROFILE: home,
+      HERMES_HOME: '',
+      CLAUDE_CONFIG_DIR: '',
       PATH: path.join(directory, 'empty-path'),
     };
 

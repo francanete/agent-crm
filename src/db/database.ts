@@ -16,16 +16,6 @@ function configureWritableDatabase(database: DatabaseSync): void {
   database.exec('PRAGMA busy_timeout = 5000');
 }
 
-function removeDatabaseFiles(databasePath: string): void {
-  for (const suffix of ['', '-wal', '-shm']) {
-    try {
-      fs.rmSync(`${databasePath}${suffix}`, { force: true });
-    } catch {
-      // Keep the original initialization error.
-    }
-  }
-}
-
 function openSqlite(databasePath: string): DatabaseSync {
   try {
     return new DatabaseSync(databasePath);
@@ -45,13 +35,37 @@ export interface InitializationResult {
 }
 
 function validateExistingFile(database: DatabaseSync, databasePath: string): number {
-  try {
-    return validateExistingDatabase(database);
-  } catch (error) {
-    if (error instanceof AppError) throw error;
-    throw new AppError('DATABASE_INVALID', 'The file is not a compatible Agent CRM database', {
-      database: databasePath,
-    });
+  // Also covers the CLI's schema read, which reopens the database after init.
+  database.exec('PRAGMA busy_timeout = 5000');
+  const deadline = performance.now() + 5000;
+  const sleeper = new Int32Array(new SharedArrayBuffer(4));
+  for (;;) {
+    try {
+      return validateExistingDatabase(database);
+    } catch (error) {
+      if (error instanceof AppError) throw error;
+      const sqliteError = error as { code?: string; errcode?: number } | null;
+      if (
+        sqliteError?.code === 'ERR_SQLITE_ERROR' &&
+        typeof sqliteError.errcode === 'number' &&
+        (sqliteError.errcode & 0xff) === 5
+      ) {
+        // WAL recovery/last-close contention can bypass SQLite's busy handler.
+        // Retry only read-only validation, including extended SQLITE_BUSY codes;
+        // never replay migrations or seeding and never treat contention as corruption.
+        const remaining = deadline - performance.now();
+        if (remaining > 0) {
+          Atomics.wait(sleeper, 0, 0, Math.min(10, remaining));
+          continue;
+        }
+        throw new AppError('DATABASE_ERROR', 'The database is busy; retry initialization', {
+          database: databasePath,
+        });
+      }
+      throw new AppError('DATABASE_INVALID', 'The file is not a compatible Agent CRM database', {
+        database: databasePath,
+      });
+    }
   }
 }
 
@@ -63,8 +77,18 @@ export function initializeDatabase(databasePath: string): InitializationResult {
     fs.mkdirSync(directory, { recursive: true, mode: 0o700 });
   }
 
-  const database = openSqlite(databasePath);
+  // Build new databases privately: an absence check does not confer ownership of
+  // the destination or its SQLite sidecars. Only publish a fully closed database.
+  let temporaryDirectory: string | undefined;
+  let database: DatabaseSync | undefined;
   try {
+    if (!existed) {
+      temporaryDirectory = fs.mkdtempSync(path.join(directory, '.agentcrm-init-'));
+    }
+    const workingPath = temporaryDirectory ? path.join(temporaryDirectory, 'crm.db') : databasePath;
+    database = openSqlite(workingPath);
+    // Validation can encounter a concurrent connection's WAL recovery/close lock.
+    database.exec('PRAGMA busy_timeout = 5000');
     const startingVersion = existed ? validateExistingFile(database, databasePath) : 0;
     configureWritableDatabase(database);
     const finalVersion = applyMigrations(database, startingVersion);
@@ -72,7 +96,27 @@ export function initializeDatabase(databasePath: string): InitializationResult {
 
     if (process.platform !== 'win32') {
       if (!directoryExisted) fs.chmodSync(directory, 0o700);
-      fs.chmodSync(databasePath, 0o600);
+      fs.chmodSync(workingPath, 0o600);
+    }
+
+    database.close();
+    database = undefined;
+    if (temporaryDirectory) {
+      try {
+        // Hard linking is atomic and refuses to replace an existing destination
+        // (unlike rename). Closing first checkpoints WAL into the database file.
+        fs.linkSync(workingPath, databasePath);
+      } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+        // A dangling symlink also blocks publication; do not follow it to create
+        // a new target or retry publication indefinitely.
+        if (!fs.existsSync(databasePath)) {
+          throw new AppError('DATABASE_INVALID', 'The database destination already exists', {
+            database: databasePath,
+          });
+        }
+        return initializeDatabase(databasePath);
+      }
     }
 
     return {
@@ -83,17 +127,24 @@ export function initializeDatabase(databasePath: string): InitializationResult {
       databaseVersion: finalVersion,
     };
   } catch (error) {
-    database.close();
-    if (!existed) removeDatabaseFiles(databasePath);
     if (error instanceof AppError) throw error;
     throw new AppError('DATABASE_ERROR', 'Failed to initialize the database', {
       database: databasePath,
     });
   } finally {
     try {
-      database.close();
+      database?.close();
     } catch {
-      // The database may already be closed by the error path.
+      // Keep the original initialization error if closing also fails.
+    } finally {
+      if (temporaryDirectory) {
+        try {
+          // Never remove the public database or sidecars, including on failure.
+          fs.rmSync(temporaryDirectory, { recursive: true, force: true });
+        } catch {
+          // Private leftovers must not mask the initialization result.
+        }
+      }
     }
   }
 }

@@ -3,8 +3,8 @@ title: Agents, profiles & databases
 description: Choose a local database and install the bundled Skill only into intended agent profiles.
 ---
 
-:::caution[Source build required]
-This guide tracks unreleased main. Complete the [source-build installation](/docs/getting-started/) first. Administer Skills in a trusted local terminal, not an ordinary agent conversation.
+:::caution[Next-release preview]
+The profile and database-binding behavior on this page is planned for the next npm release and is not part of 0.1.0. Administer Skills in a trusted local terminal, not an ordinary agent conversation.
 :::
 
 ## Choose the database deliberately

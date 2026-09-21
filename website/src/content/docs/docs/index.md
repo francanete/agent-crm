@@ -6,7 +6,7 @@ description: A practical guide to the experimental Agent CRM CLI for shell-capab
 Agent CRM is a **local-first, schema-aware relationship database for shell-capable AI agents**. It is a CLI backed by SQLite, not a hosted app or an agent itself. There is no account, CRM server, synchronization service, or runtime network dependency.
 
 :::caution[These docs track unreleased main]
-The published npm package is **0.1.0**. Some pages also document newer fixes and setup behavior from unreleased `main`; those pages are labelled. CLI and database formats are experimental and may change before 1.0. Back up important data before upgrades.
+The published npm package is **0.1.0**. Pages that preview behavior planned for a later release are labelled. CLI and database formats are experimental and may change before 1.0. Back up important data before upgrades.
 :::
 
 ## A short path to your first record

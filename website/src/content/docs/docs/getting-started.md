@@ -4,7 +4,7 @@ description: Install Agent CRM from npm and try fake data in an isolated local d
 ---
 
 :::note[Published package and main]
-The current npm package is **0.1.0**. Some reference pages cover newer behavior on the repository's unreleased `main` branch; those pages are labelled. This is experimental software, so use fake data first and back up important data.
+These instructions are for the published **agent-crm 0.1.0** npm package. Pages that preview behavior planned for a later release are labelled. This is experimental software, so use fake data first and back up important data.
 :::
 
 ## Install from npm
@@ -35,23 +35,5 @@ node dist/cli.js search "Ana" --object person --json
 ```
 
 Use fake data only. Inspect both the process status and JSON `ok`; retain the full returned record ID. The temporary database remains on disk until you intentionally remove it. `unset AGENTCRM_DB` ends this shell's selection but does not delete data.
-
-## Test unreleased main when a page requires it
-
-Pages that depend on fixes not yet published in 0.1.0 say so explicitly. To test those changes, build a trusted checkout and install its tarball:
-
-```bash
-git clone https://github.com/francanete/agent-crm.git
-cd agent-crm
-git switch main
-git rev-parse HEAD
-npm ci
-npm run build
-npm pack
-npm install --global ./agent-crm-0.1.0.tgz
-agentcrm --help
-```
-
-A global install changes your npm prefix, but does not initialize a database or install Skills. Inspect the package and use your normal Node installation permissions; do not blindly add `sudo`. If the package version changes, use the tarball filename printed by `npm pack`.
 
 Continue to [agent and profile setup](/docs/agent-setup/). A background gateway may have a different `PATH` from this terminal.

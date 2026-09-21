@@ -3,7 +3,7 @@ title: Everyday workflows
 description: Search before creating, use bounded context, and keep retry and backup behavior explicit.
 ---
 
-Start with the [published npm package and a temporary database](/docs/getting-started/). These workflows also track **unreleased main** where labelled. Keep the same explicit `--db` or `AGENTCRM_DB` selection throughout.
+Start with the [published npm package and a temporary database](/docs/getting-started/). Features planned for a later release are labelled. Keep the same explicit `--db` or `AGENTCRM_DB` selection throughout.
 
 ## Remember someone without guessing
 

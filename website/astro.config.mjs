@@ -1,5 +1,6 @@
 import { defineConfig } from 'astro/config';
 import starlight from '@astrojs/starlight';
+import starlightThemeBlack from 'starlight-theme-black';
 
 // Set only after the public domain is approved. No preview-domain canonicals.
 const site = process.env.SITE_URL;
@@ -14,6 +15,7 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'always',
   integrations: [starlight({
+    plugins: [starlightThemeBlack({ docs: { showMarkdownActions: false } })],
     title: 'Agent CRM',
     description: 'Local relationship memory for shell-capable AI agents. Experimental, open source, and built on SQLite.',
     favicon: '/favicon.svg',

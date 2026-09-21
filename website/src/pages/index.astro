@@ -26,7 +26,7 @@ const social = Astro.site ? new URL('/social.svg', Astro.site) : '/social.svg';
     <a class="skip" href="#main">Skip to content</a>
     <header class="wrap masthead">
       <a class="brand" href="/" aria-label="Agent CRM home"><span class="mark" aria-hidden="true">a<span>:</span></span> Agent CRM</a>
-      <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="/docs/">Docs</a><a href="https://github.com/francanete/agent-crm">GitHub <span aria-hidden="true">↗</span></a></nav>
+      <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="/docs/">Docs</a><a href="https://www.npmjs.com/package/agent-crm">npm <span aria-hidden="true">↗</span></a><a href="https://github.com/francanete/agent-crm">GitHub <span aria-hidden="true">↗</span></a></nav>
     </header>
     <main id="main">
       <section class="wrap hero" aria-labelledby="hero-title">
@@ -35,22 +35,23 @@ const social = Astro.site ? new URL('/social.svg', Astro.site) : '/social.svg';
           <h1 id="hero-title">Good relationships.<br /><em>Durable memory.</em></h1>
           <p class="lede">Give your agent a place to remember people, conversations, and what comes next.</p>
           <p class="intro">Agent CRM is a schema-aware relationship database for shell-capable AI agents. A deterministic CLI. One local SQLite database. No CRM server or account.</p>
-          <div class="actions"><a class="button" href="/docs/getting-started/">Start locally <span aria-hidden="true">↗</span></a><a class="text-link" href="/docs/">Read the docs <span aria-hidden="true">→</span></a></div>
-          <p class="release">Node.js 24 · MIT licensed<br />Docs track unreleased main, beyond npm 0.1.0.</p>
+          <div class="actions"><a class="button" href="/docs/getting-started/">Install from npm <span aria-hidden="true">↗</span></a><a class="text-link" href="/docs/">Read the docs <span aria-hidden="true">→</span></a></div>
+          <p class="release">Published on npm · Node.js 24 · MIT licensed<br />Current package: 0.1.0. Pages covering newer main-only behavior are labelled.</p>
         </div>
         <figure class="terminal">
           <figcaption><span class="terminal-dot" aria-hidden="true"></span> A SMALL, LOCAL BEGINNING <span>bash</span></figcaption>
           <div class="terminal-body">
-            <p class="comment"># From a source-built repository</p>
-            <pre tabindex="0" aria-label="Bash example using a temporary CRM database"><code>export AGENTCRM_DB="$(mktemp -d)/crm.db"
-node dist/cli.js init --json
+            <p class="comment"># Install the published package</p>
+            <pre tabindex="0" aria-label="Bash example installing Agent CRM and using a temporary database"><code>npm install --global agent-crm
+export AGENTCRM_DB="$(mktemp -d)/crm.db"
+agentcrm init --json
 
 <span class="comment"># Look before you remember</span>
-node dist/cli.js search "ana@example.com" \
+agentcrm search "ana@example.com" \
   --object person --json
 
 <span class="comment"># A structured record, not a loose note</span>
-node dist/cli.js record create person \
+agentcrm record create person \
   --values {'\'{"name":"Ana",\n    "email":"ana@example.com"}\''} --json</code></pre>
             <div class="terminal-note"><span aria-hidden="true">↳</span> Fake contact. Real CLI commands.<br />No simulated output.</div>
           </div>
@@ -73,9 +74,9 @@ node dist/cli.js record create person \
         <ol class="flow"><li><span>01</span><div><strong>Your agent</strong><small>Shell access + portable Agent Skill</small></div></li><li><span>02</span><div><strong>agentcrm</strong><small>Validated commands + JSON contracts</small></div></li><li><span>03</span><div><strong>Your SQLite database</strong><small>Records + relationships + history</small></div></li></ol>
       </section>
       <section class="wrap boundary" aria-labelledby="boundary-title"><p class="eyebrow">03 / Know the boundary</p><div><h2 id="boundary-title">Local storage.<br />Not a blanket privacy promise.</h2><p>Agent CRM makes no runtime network requests. But your agent host, model provider, and messaging channel may receive the data it reads. The database and exports are not encrypted by Agent CRM.</p><p>This is experimental software—not a hosted dashboard, cloud sync service, or production-readiness claim. Back up before upgrades. Archive preserves history; it is not erasure.</p><a class="text-link" href="/docs/privacy-security/">Read the privacy model <span aria-hidden="true">→</span></a></div></section>
-      <section class="wrap closing"><div><p class="eyebrow">Start small. Use fake data first.</p><h2>A useful memory starts<br />with one local record.</h2></div><a class="button" href="/docs/getting-started/">Build & try Agent CRM <span aria-hidden="true">↗</span></a></section>
+      <section class="wrap closing"><div><p class="eyebrow">Start small. Use fake data first.</p><h2>A useful memory starts<br />with one local record.</h2></div><a class="button" href="/docs/getting-started/">Install & try Agent CRM <span aria-hidden="true">↗</span></a></section>
     </main>
-    <footer class="wrap"><a class="brand" href="/">Agent CRM</a><p>Local relationship memory. Open source, MIT.</p><nav aria-label="Footer navigation"><a href="/docs/">Documentation</a><a href="https://github.com/francanete/agent-crm/blob/main/CONTRIBUTING.md">Contribute</a><a href="https://github.com/francanete/agent-crm/blob/main/SECURITY.md">Security</a></nav></footer>
+    <footer class="wrap"><a class="brand" href="/">Agent CRM</a><p>Local relationship memory. Open source, MIT.</p><nav aria-label="Footer navigation"><a href="/docs/">Documentation</a><a href="https://www.npmjs.com/package/agent-crm">npm</a><a href="https://github.com/francanete/agent-crm/blob/main/CONTRIBUTING.md">Contribute</a><a href="https://github.com/francanete/agent-crm/blob/main/SECURITY.md">Security</a></nav></footer>
   </body>
 </html>
 <style>

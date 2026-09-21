@@ -3,7 +3,7 @@ title: Everyday workflows
 description: Search before creating, use bounded context, and keep retry and backup behavior explicit.
 ---
 
-These workflows track **unreleased main**. Start with the [source build and temporary database](/docs/getting-started/), then install that build if you want to invoke `agentcrm` by name. Keep the same explicit `--db` or `AGENTCRM_DB` selection throughout.
+Start with the [published npm package and a temporary database](/docs/getting-started/). These workflows also track **unreleased main** where labelled. Keep the same explicit `--db` or `AGENTCRM_DB` selection throughout.
 
 ## Remember someone without guessing
 

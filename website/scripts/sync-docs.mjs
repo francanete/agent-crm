@@ -14,7 +14,7 @@ for (const name of names) {
       ? `](/docs/${slug}/${hash})`
       : `](https://github.com/francanete/agent-crm/blob/main/docs/${path}${hash})`;
   });
-  const intro = `:::caution[Unreleased main documentation]\nThis page is built directly from the repository's [docs/${name}.md](https://github.com/francanete/agent-crm/blob/main/docs/${name}.md). It includes changes after npm 0.1.0; version strings below do not mean all behavior shipped in that package. Follow the [source-build getting started guide](/docs/getting-started/) for these commands, not the registry install/update examples below.\n:::\n`;
+  const intro = `:::caution[Unreleased main documentation]\nThis reference is generated from the repository's [docs/${name}.md](https://github.com/francanete/agent-crm/blob/main/docs/${name}.md) and includes changes newer than the published npm 0.1.0 package. Start with the [npm installation guide](/docs/getting-started/). If a command depends on unreleased behavior, use the source-build section there.\n:::\n`;
   await writeFile(new URL(`${name}.md`, destination), `---\ntitle: ${JSON.stringify(heading.slice(2))}\ndescription: ${JSON.stringify(`${heading.slice(2)} for Agent CRM, tracking unreleased main.`)}\n---\n\n${intro}${body}`);
 }
 console.log(`Synced ${names.length} authoritative repository documents.`);

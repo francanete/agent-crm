@@ -1,27 +1,23 @@
 ---
 title: Getting started
-description: Build unreleased Agent CRM from source and try fake data in an isolated database.
+description: Install Agent CRM from npm and try fake data in an isolated local database.
 ---
 
-:::caution[Unreleased main, not npm 0.1.0]
-These guides include fixes newer than the published package. The package version still reads 0.1.0 on main, so `--version` alone cannot distinguish them. Record `git rev-parse HEAD` when testing. This is experimental software, not a production-readiness guarantee.
+:::note[Published package and main]
+The current npm package is **0.1.0**. Some reference pages cover newer behavior on the repository's unreleased `main` branch; those pages are labelled. This is experimental software, so use fake data first and back up important data.
 :::
 
-## Build from source
+## Install from npm
 
-Install **Node.js 24** and npm. No external SQLite server or native SQLite npm package is needed. In a trusted local terminal:
+Install **Node.js 24** and npm. No external SQLite server or native SQLite npm package is needed. Then install the published package in a trusted local terminal:
 
 ```bash
-git clone https://github.com/francanete/agent-crm.git
-cd agent-crm
-git switch main
-git rev-parse HEAD
-npm ci
-npm run build
-node dist/cli.js --help
+npm install --global agent-crm
+agentcrm --version
+agentcrm --help
 ```
 
-The examples below use the compiled CLI directly, from the repository root. They do not install a Skill or modify an agent profile.
+Installing the npm package does not initialize a database or modify an agent profile.
 
 ## Try an isolated database
 
@@ -40,11 +36,17 @@ node dist/cli.js search "Ana" --object person --json
 
 Use fake data only. Inspect both the process status and JSON `ok`; retain the full returned record ID. The temporary database remains on disk until you intentionally remove it. `unset AGENTCRM_DB` ends this shell's selection but does not delete data.
 
-## Make the source build available to an agent
+## Test unreleased main when a page requires it
 
-An agent's process needs the executable on its `PATH`. To install the source build (rather than the older registry release), from the repository root:
+Pages that depend on fixes not yet published in 0.1.0 say so explicitly. To test those changes, build a trusted checkout and install its tarball:
 
 ```bash
+git clone https://github.com/francanete/agent-crm.git
+cd agent-crm
+git switch main
+git rev-parse HEAD
+npm ci
+npm run build
 npm pack
 npm install --global ./agent-crm-0.1.0.tgz
 agentcrm --help

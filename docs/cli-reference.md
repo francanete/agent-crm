@@ -1,6 +1,6 @@
 # CLI reference
 
-This document describes the public `agentcrm` command-line interface for `0.1.0`. Run `agentcrm <command> --help` for the authoritative short-form syntax installed with your version.
+This document describes the public `agentcrm` command-line interface for `0.1.1`. Run `agentcrm <command> --help` for the authoritative short-form syntax installed with your version.
 
 ## Installation
 
@@ -17,7 +17,7 @@ For release-candidate testing from a local tarball:
 
 ```bash
 npm pack
-npm install --global ./agent-crm-0.1.0.tgz
+npm install --global ./agent-crm-0.1.1.tgz
 ```
 
 Update the CLI, then refresh each managed Skill installation so its instructions match:
@@ -108,7 +108,7 @@ Mutation actor precedence is:
   "data": {},
   "meta": {
     "database": "/absolute/path/to/crm.db",
-    "cliVersion": "0.1.0"
+    "cliVersion": "0.1.1"
   }
 }
 ```

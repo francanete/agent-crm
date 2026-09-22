@@ -47,7 +47,7 @@ The agent host may itself use a networked model or messaging channel, but Agent 
   "data": {},
   "meta": {
     "database": "/path/to/crm.db",
-    "cliVersion": "0.1.0"
+    "cliVersion": "0.1.1"
   }
 }
 ```
@@ -110,7 +110,7 @@ New databases are migrated and seeded in a private temporary directory beside th
 
 The `metadata` table records the database format version, creation time, and a stable instance ID. Every database is validated before normal use. A database newer than the CLI supports is rejected rather than opened unsafely.
 
-Migrations run in ordered immediate transactions. The `0.1.0` release uses database format version 1.
+Migrations run in ordered immediate transactions. The `0.1.1` release uses database format version 1.
 
 ### Object types and fields
 
@@ -301,9 +301,9 @@ Domain services ──┼── future MCP adapter
 
 MCP is optional and must not become a prerequisite for local CLI use. Presentation metadata must remain separate from canonical CRM data and must not be stored as business records. Rich UI should be capability-negotiated, declarative, non-executable, and accompanied by a readable fallback, as recorded in ADR 0003.
 
-A remote MCP gateway would cross the current local-only trust boundary and requires an explicit security, authentication, and privacy design. It is not part of `0.1.0`.
+A remote MCP gateway would cross the current local-only trust boundary and requires an explicit security, authentication, and privacy design. It is not part of `0.1.1`.
 
-## Deliberate non-goals for 0.1.0
+## Deliberate non-goals for 0.1.1
 
 - Hosted service or synchronization
 - Embeddings or vector search

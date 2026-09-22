@@ -6,7 +6,7 @@ A local-first, schema-aware relationship database for shell-capable AI agents.
 
 Agent CRM gives agents durable contact, organization, interaction, follow-up, custom-object, and relationship memory through a deterministic CLI. SQLite is the system of record: there is no CRM server, account, telemetry, or runtime network dependency.
 
-> **Experimental `0.1.0`:** CLI JSON contracts are tested and versioned, but the CLI, database format, and native export format may evolve before `1.0`. Back up important data before upgrading.
+> **Experimental `0.1.1`:** CLI JSON contracts are tested and versioned, but the CLI, database format, and native export format may evolve before `1.0`. Back up important data before upgrading.
 
 ## Why Agent CRM?
 
@@ -250,7 +250,7 @@ Agents and scripts should pass `--json` explicitly. Success:
   "data": {},
   "meta": {
     "database": "/absolute/path/to/crm.db",
-    "cliVersion": "0.1.0"
+    "cliVersion": "0.1.1"
   }
 }
 ```
@@ -327,7 +327,7 @@ The CI matrix runs Node.js 24 on Linux, macOS, and Windows. See [CONTRIBUTING.md
 
 ## Roadmap boundaries
 
-Not included in `0.1.0`:
+Not included in `0.1.1`:
 
 - MCP adapter or server
 - A2UI/generative UI renderer

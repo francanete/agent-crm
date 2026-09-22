@@ -28,7 +28,7 @@ The CLI validates requests and protects against accidental or malformed operatio
 
 ### In scope
 
-The `0.1.0` security design addresses:
+The `0.1.1` security design addresses:
 
 - malformed and incompatible database files;
 - unsafe query construction;
@@ -60,7 +60,7 @@ Normal CLI operations use local files and Node.js built-ins. Runtime dependencie
 
 Installation and publication are separate concerns: npm may access the npm registry when installing or updating the package. Agent hosts and model providers may use networks independently of Agent CRM.
 
-No MCP server or network listener is included in `0.1.0`.
+No MCP server or network listener is included in `0.1.1`.
 
 ## Data at rest
 
@@ -174,7 +174,7 @@ Archive operations set lifecycle timestamps and hide data from normal list, sear
 - archived schema values;
 - immutable history.
 
-Therefore, archive does not satisfy a request for permanent erasure. Agent CRM `0.1.0` has no supported permanent record-delete or selective history-redaction command.
+Therefore, archive does not satisfy a request for permanent erasure. Agent CRM `0.1.1` has no supported permanent record-delete or selective history-redaction command.
 
 To erase an entire CRM, first make intentional decisions about required backups, stop processes using the database, and remove the selected database plus its SQLite sidecars and all exports through operating-system tools. Verify the path carefully. npm or Skill uninstall does not perform this operation.
 
@@ -284,7 +284,7 @@ Connecting a hosted ChatGPT, Claude, or other remote client to a local CRM requi
 - rate and input limits;
 - revocation and incident response.
 
-No remote MCP gateway is part of `0.1.0`.
+No remote MCP gateway is part of `0.1.1`.
 
 ## Operational checklist
 

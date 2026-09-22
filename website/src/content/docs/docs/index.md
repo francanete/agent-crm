@@ -18,7 +18,9 @@ The published npm package is **0.1.0**. Pages that preview behavior planned for 
 
 ## What you get
 
-People, organizations, interactions, and follow-ups are built in. Typed custom objects and fields, directed relationships, FTS5 search, immutable mutation history, and exact-retry idempotency extend the same local store.
+People, organizations, interactions, and follow-ups are built in. The schema is not limited to those defaults: create your own objects, add typed fields, and connect records with directed relationships to model the CRM your work needs. FTS5 search, immutable mutation history, and exact-retry idempotency apply across the same local store.
+
+This makes Agent CRM adaptable across sectors and workflows without pretending every organization uses the same pipeline. The supported building blocks remain explicit: eight field types, optional formats and validated relationships rather than arbitrary executable schema logic.
 
 The [CLI reference](/docs/cli-reference/), [CSV guide](/docs/csv-import/), [backup guide](/docs/import-export/), and [privacy guide](/docs/privacy-security/) are rendered from the repository's authoritative documents at build time—not separately maintained copies.
 

@@ -1,0 +1,13 @@
+:root {
+  /* Agent CRM accents layered over Starlight Black's layout and surfaces. */
+  --sl-color-accent: #3291ff;
+  --sl-content-width: 48rem;
+}
+:root[data-theme='light'] {
+  --sl-color-accent: #0068d6;
+}
+body { -webkit-font-smoothing: antialiased; }
+:focus-visible { outline: 2px solid var(--sl-color-accent); outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}

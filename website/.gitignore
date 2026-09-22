@@ -1,0 +1,10 @@
+.astro/
+.vercel/
+.env
+.env.*
+!.env.example
+# Generated from ../docs; see scripts/sync-docs.mjs.
+src/content/docs/docs/cli-reference.md
+src/content/docs/docs/import-export.md
+src/content/docs/docs/csv-import.md
+src/content/docs/docs/privacy-security.md

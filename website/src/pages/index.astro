@@ -1,0 +1,206 @@
+---
+const title = 'Agent CRM — The AI-native CRM for personal agents';
+const description = 'A local, customizable CRM built for personal AI agents to manage people, conversations, follow-ups, and the relationships between them.';
+const canonical = Astro.site ? new URL(Astro.url.pathname, Astro.site) : undefined;
+const social = Astro.site ? new URL('/social.svg', Astro.site) : '/social.svg';
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="description" content={description} />
+    <meta name="theme-color" content="#ffffff" />
+    <title>{title}</title>
+    {canonical && <link rel="canonical" href={canonical} />}
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={social} />
+    <meta property="og:image:alt" content="Agent CRM: the local, customizable, AI-native CRM for personal agents." />
+    {canonical && <meta property="og:url" content={canonical} />}
+    <meta name="twitter:card" content="summary_large_image" />
+  </head>
+  <body>
+    <a class="skip" href="#main">Skip to content</a>
+    <header class="wrap masthead">
+      <a class="brand" href="/" aria-label="Agent CRM home"><span class="mark" aria-hidden="true">a<span>:</span></span> Agent CRM</a>
+      <nav aria-label="Main navigation"><a href="#how-it-works">How it works</a><a href="/docs/">Docs</a><a href="https://www.npmjs.com/package/agent-crm">npm <span aria-hidden="true">↗</span></a><a href="https://github.com/francanete/agent-crm">GitHub <span aria-hidden="true">↗</span></a></nav>
+    </header>
+    <main id="main">
+      <section class="wrap hero" aria-labelledby="hero-title">
+        <div class="hero-copy">
+          <p class="eyebrow"><span class="status" aria-hidden="true"></span> Local-first / open source / AI-native</p>
+          <h1 id="hero-title">The AI-native CRM<br /><em>for personal agents.</em></h1>
+          <p class="lede">Give your agent a structured CRM it can search, update, and shape around the way you work.</p>
+          <p class="intro">Agent CRM is a local, customizable relationship database designed for agents—not a human dashboard retrofitted with AI. One deterministic CLI. One SQLite database. No hosted CRM or account.</p>
+          <div class="actions"><a class="button" href="https://www.npmjs.com/package/agent-crm">View package on npm <span aria-hidden="true">↗</span></a><a class="text-link" href="/docs/getting-started/">Get started <span aria-hidden="true">→</span></a></div>
+          <p class="release">Published on npm · Node.js 24 · MIT licensed<br />Current package: 0.1.0. Pages covering newer main-only behavior are labelled.</p>
+          <div class="agent-support">
+            <p><strong>Verified with</strong> Pi · Hermes Agent</p>
+            <p><strong>Also supported</strong> Claude Code via custom Skill destination <span>(not yet manually verified)</span></p>
+          </div>
+        </div>
+        <figure class="terminal">
+          <figcaption><span class="terminal-dot" aria-hidden="true"></span> SET UP IN A MINUTE <span>bash</span></figcaption>
+          <div class="terminal-body">
+            <p class="comment"># Install and initialize</p>
+            <pre tabindex="0" aria-label="Bash commands to install and initialize Agent CRM"><code>npm install --global agent-crm
+agentcrm init --json</code></pre>
+            <div class="terminal-note"><span aria-hidden="true">↳</span> Your local CRM is ready.</div>
+          </div>
+          <div class="terminal-footer">YOUR MACHINE <span>One SQLite file · no CRM account</span></div>
+        </figure>
+      </section>
+      <section class="principles" aria-label="Core design">
+        <div class="wrap principle-grid"><p><strong>Yours by default.</strong><span>Your machine, your database.</span></p><p><strong>Built for agent tools.</strong><span>Explicit commands, structured JSON.</span></p><p><strong>Shaped around your work.</strong><span>Custom objects, fields, and relationships.</span></p></div>
+      </section>
+      <section class="wrap capabilities" aria-labelledby="capabilities-title">
+        <div class="section-heading"><p class="eyebrow">01 / Beyond a contact list</p><h2 id="capabilities-title">Less re-explaining.<br />More picking up where you left off.</h2><p>Keep the details that make a relationship useful—not just a name in a text file.</p></div>
+        <div class="feature-grid">
+          <article><span class="index">[01]</span><h3>Build the CRM<br />your work needs.</h3><p>Start with people, organizations, interactions, and follow-ups. Then add your own objects, typed fields, and relationships for clients, projects, properties, candidates, vendors—or a workflow unique to you.</p><a href="/docs/workflows/#shape-the-crm-around-your-work">Shape your CRM <span aria-hidden="true">→</span></a></article>
+          <article><span class="index">[02]</span><h3>Bring context to<br />the next conversation.</h3><p>Search with SQLite FTS5 and retrieve bounded relationship context before a meeting. No embeddings or external retrieval service required.</p><a href="/docs/workflows/">See the workflow <span aria-hidden="true">→</span></a></article>
+          <article><span class="index">[03]</span><h3>Make changes<br />you can account for.</h3><p>Schema validation, transactions, exact-retry idempotency, and immutable mutation history give agents explicit rules for writing durable data.</p><a href="/docs/cli-reference/#idempotent-mutations">Understand retries <span aria-hidden="true">→</span></a></article>
+          <article><span class="index">[04]</span><h3>Own it. Move it.<br />Restore it.</h3><p>Create complete versioned backups, restore them transactionally, or bring existing contacts in through explicitly mapped CSV. Your CRM is not trapped in a hosted platform.</p><a href="/docs/import-export/">Protect your data <span aria-hidden="true">→</span></a></article>
+          <article><span class="index">[05]</span><h3>Bring your<br />own agent.</h3><p>Use the bundled Skill with supported hosts or call the deterministic CLI from any shell-capable agent. No dependency on one model provider, interface, or messaging channel.</p><a href="/docs/agent-setup/">Connect an agent <span aria-hidden="true">→</span></a></article>
+          <article><span class="index">[06]</span><h3>Keep it<br />under your control.</h3><p>One portable SQLite database on your machine. No Agent CRM account, telemetry endpoint, cloud database, or runtime network request.</p><a href="/docs/privacy-security/">Understand the boundary <span aria-hidden="true">→</span></a></article>
+        </div>
+      </section>
+      <section class="wrap system" id="how-it-works" aria-labelledby="system-title">
+        <div><p class="eyebrow">02 / A small, deliberate system</p><h2 id="system-title">Your agent talks.<br />The CLI keeps the record.</h2><p>Keep your existing shell-capable agent. The bundled Skill teaches it to inspect schema, search before creating, and return useful answers instead of raw tool output.</p><a class="text-link" href="/docs/agent-setup/">Connect an agent and database <span aria-hidden="true">→</span></a></div>
+        <ol class="flow"><li><span>01</span><div><strong>Your agent</strong><small>Shell access + portable Agent Skill</small></div></li><li><span>02</span><div><strong>agentcrm</strong><small>Validated commands + JSON contracts</small></div></li><li><span>03</span><div><strong>Your SQLite database</strong><small>Records + relationships + history</small></div></li></ol>
+      </section>
+      <section class="wrap boundary" aria-labelledby="boundary-title"><p class="eyebrow">03 / Your data, on your machine</p><div><h2 id="boundary-title">No Agent CRM cloud.<br />No account required.</h2><p>Your CRM lives in a local SQLite file you control. Agent CRM makes no runtime network requests and provides no hosted account, telemetry endpoint, or synchronization service.</p><p>Your agent host, model provider, or messaging channel may still receive data you ask the agent to read. The database and exports are not encrypted by Agent CRM. Back up before upgrades.</p><a class="text-link" href="/docs/privacy-security/">Understand the privacy boundary <span aria-hidden="true">→</span></a></div></section>
+      <section class="wrap closing"><div><p class="eyebrow">Start small. Use fake data first.</p><h2>A useful memory starts<br />with one local record.</h2></div><a class="button" href="/docs/getting-started/">Install & try Agent CRM <span aria-hidden="true">↗</span></a></section>
+    </main>
+    <footer class="wrap"><a class="brand" href="/">Agent CRM</a><p>Local relationship memory. Open source, MIT.</p><nav aria-label="Footer navigation"><a href="/docs/">Documentation</a><a href="https://www.npmjs.com/package/agent-crm">npm</a><a href="https://github.com/francanete/agent-crm/blob/main/CONTRIBUTING.md">Contribute</a><a href="https://github.com/francanete/agent-crm/blob/main/SECURITY.md">Security</a></nav></footer>
+  </body>
+</html>
+<style>
+  /* Restrained, grid-led public site; original scoped layout below. */
+  html body { background:#fff; color:#171717; font-family:Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; -webkit-font-smoothing:antialiased; }
+  body .wrap { width:min(1200px,calc(100% - 4rem)); }
+  body .masthead { min-height:80px; border-color:#e8e8e8; }
+  body .brand { font-weight:650; font-size:1.1rem; }
+  body .mark { background:#171717; color:#fff; border-radius:6px; font-family:ui-monospace,SFMono-Regular,Consolas,monospace; width:30px; height:30px; font-size:21px; }
+  body .masthead nav, body footer nav { color:#525252; }
+  body .hero { display:grid; grid-template-columns:minmax(0,1.1fr) minmax(340px,.9fr); gap:clamp(2.5rem,6vw,5.5rem); align-items:center; padding:4.5rem 3rem; border-inline:1px solid #ededed; }
+  body .hero-copy { text-align:left; }
+  body .hero .eyebrow { display:inline-flex; align-items:center; border:1px solid #e5e5e5; border-radius:99px; padding:.45rem .85rem; background:#fafafa; font-size:.62rem; letter-spacing:.05em; }
+  body .eyebrow { color:#626262; font-weight:500; }
+  body .status { background:#237b53; width:6px; height:6px; }
+  body h1 { font:650 clamp(3rem,5vw,4.7rem)/1.04 Inter,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif; letter-spacing:-.065em; margin:1.2rem 0 1rem; }
+  body h1 em { font:inherit; font-style:normal; color:#737373; letter-spacing:inherit; }
+  body h1 .desktop { display:none; }
+  body .lede { color:#525252; font-size:1.1rem; max-width:36rem; margin:0 0 .65rem; }
+  body .intro { color:#626262; font-size:.9rem; max-width:36rem; margin:0; }
+  body .actions { justify-content:flex-start; gap:.8rem; margin-top:1.5rem; }
+  body .button, body .actions .text-link { display:inline-flex; align-items:center; justify-content:center; min-height:46px; border:1px solid #171717; border-radius:6px; padding:.65rem 1.35rem; gap:1.6rem; background:#171717; color:#fff; font-size:.85rem; font-weight:550; text-decoration:none; transition:background .15s,border-color .15s; }
+  body .button:hover { background:#333; border-color:#333; }
+  body .actions .text-link { background:#fff; border-color:#dedede; color:#171717; }
+  body .actions .text-link:hover { background:#f5f5f5; border-color:#aaa; }
+  body .release { color:#737373; font-size:.7rem; line-height:1.65; margin:.8rem 0 0; }
+  body .agent-support { color:#525252; font-size:.72rem; margin:1.2rem 0 0; }
+  body .agent-support p { margin:.2rem 0; }
+  body .agent-support strong { color:#171717; font-weight:600; }
+  body .agent-support span { color:#737373; }
+  body .terminal { transform:none; width:100%; max-width:none; margin:0; border:1px solid #333; border-radius:9px; background:#0a0a0a; color:#ededed; box-shadow:0 24px 60px -25px #00000050; overflow:hidden; }
+  body .terminal figcaption { background:#141414; border-color:#292929; color:#b5b5b5; padding:.9rem 1.5rem; font-size:.65rem; letter-spacing:.06em; }
+  body .terminal-dot { background:#737373; box-shadow:12px 0 #525252,24px 0 #404040; margin-right:1.9rem; width:7px; height:7px; }
+  body .terminal-body { padding:1.5rem 1.7rem; }
+  body .terminal pre { font-size:.78rem; line-height:1.9; color:#ededed; margin:.4rem 0 1.1rem; }
+  body .terminal .comment { color:#a1a1a1; }
+  body .terminal figcaption > span:last-child { color:#a1a1a1; }
+  body .terminal-note { border-color:#292929; color:#a1a1a1; font-size:.7rem; }
+  body .terminal-footer { background:#141414; border-color:#292929; color:#a1a1a1; padding:.75rem 1.5rem; font-size:.6rem; }
+  body .principles { border-color:#e8e8e8; background:#fff; }
+  body .principle-grid { gap:0; border-left:1px solid #e8e8e8; }
+  body .principle-grid p { margin:0; padding:2rem; border-right:1px solid #e8e8e8; font-size:.8rem; }
+  body .principle-grid strong { color:#171717; font-weight:600; }
+  body .principle-grid p span { color:#626262; }
+  body .capabilities { padding:6rem 0 0; }
+  body .section-heading { text-align:center; max-width:none; padding-inline:1rem; }
+  body h2 { font-size:clamp(1.8rem,3.1vw,2.7rem); font-weight:600; letter-spacing:-.05em; line-height:1.18; color:#171717; }
+  body .section-heading > p:last-child { color:#626262; font-size:.95rem; max-width:none; }
+  body .feature-grid { gap:0; margin-top:3rem; border:1px solid #e8e8e8; }
+  body .feature-grid article { display:flex; flex-direction:column; padding:2.3rem 2rem; border-top:0; min-width:0; }
+  body .feature-grid article + article { border-left:1px solid #e8e8e8; }
+  body .feature-grid article:nth-child(n+4) { border-top:1px solid #e8e8e8; }
+  body .feature-grid article:nth-child(4) { border-left:0; }
+  body .index { color:#737373; font-size:.65rem; margin-bottom:2.5rem; }
+  body .feature-grid h3 { color:#171717; font-size:1.3rem; font-weight:600; letter-spacing:-.035em; line-height:1.35; }
+  body .feature-grid p { color:#626262; font-size:.86rem; line-height:1.8; margin-bottom:1.8rem; }
+  body .feature-grid a { display:flex; justify-content:space-between; margin-top:auto; color:#171717; font-size:.8rem; }
+  body .system { grid-template-columns:1fr 1fr; gap:5rem; padding:5rem 2rem; background:#fff; border:1px solid #e8e8e8; border-top:0; }
+  body .system h2 { font-size:clamp(1.8rem,2.7vw,2.4rem); }
+  body .system p:not(.eyebrow), body .boundary p:not(.eyebrow) { color:#626262; font-size:.9rem; }
+  body .text-link { color:#171717; }
+  body .flow { margin:auto 0; padding:0; }
+  body .flow li { position:relative; padding:1.3rem; border:1px solid #e5e5e5; border-radius:6px; background:#fafafa; gap:1rem; }
+  body .flow li + li { margin-top:1.6rem; }
+  body .flow li:last-child { border:1px solid #e5e5e5; }
+  body .flow li + li::before { content:''; position:absolute; height:1.6rem; width:1px; background:#d4d4d4; left:2rem; bottom:100%; }
+  body .flow li > span { background:transparent; color:#737373; border:0; font-size:.65rem; }
+  body .flow strong { color:#171717; font-size:.9rem; font-weight:550; }
+  body .flow small { color:#626262; font-size:.72rem; }
+  body .boundary { grid-template-columns:1fr 2fr; padding:5rem 2rem; gap:4rem; border:1px solid #e8e8e8; border-top:0; }
+  body .closing { padding:4rem 2rem; border:1px solid #e8e8e8; border-top:0; background:#fafafa; }
+  body .closing h2 { font-size:clamp(1.8rem,3vw,2.5rem); }
+  body footer { padding-block:2.5rem; border:0; }
+  body footer p { color:#737373; font-size:.7rem; }
+  body .skip { background:#171717; color:#fff; }
+  body a:focus-visible, body pre:focus-visible { outline:2px solid #0068d6; outline-offset:5px; }
+  body ::selection { background:#dbeafe; color:#171717; }
+  @media(max-width:1000px) {
+    body .hero { gap:2rem; padding-inline:2rem; }
+    body .system { gap:2rem; }
+    body .feature-grid article { padding:2rem 1.5rem; }
+    body .terminal-footer { flex-direction:row; }
+  }
+  @media(max-width:860px) {
+    body .hero { grid-template-columns:1fr; }
+    body .hero-copy { text-align:center; }
+    body .lede, body .intro { margin-inline:auto; }
+    body .actions { justify-content:center; }
+    body .terminal { max-width:600px; margin-inline:auto; }
+  }
+  @media(max-width:760px) {
+    body .wrap { width:calc(100% - 2rem); }
+    body .masthead { min-height:72px; }
+    body .hero { padding:2.5rem 1rem; gap:2rem; }
+    body h1 { font-size:clamp(2.25rem,8vw,3.5rem); }
+    body .hero .eyebrow { font-size:.5rem; letter-spacing:.015em; padding:.4rem .6rem; }
+    body .lede { font-size:1rem; }
+    body .intro { font-size:.8rem; }
+    body .actions { gap:.6rem; }
+    body .button, body .actions .text-link { font-size:.78rem; padding-inline:1rem; gap:.9rem; }
+    body .terminal { margin:0 -.5rem; width:calc(100% + 1rem); }
+    body .terminal figcaption { padding:.8rem; font-size:.5rem; }
+    body .terminal-body { padding:1.1rem .85rem; }
+    body .terminal pre { font-size:.64rem; }
+    body .terminal-note { font-size:.6rem; }
+    body .terminal-footer { flex-wrap:wrap; gap:.3rem; padding:.65rem .85rem; font-size:.5rem; }
+    body .principle-grid { grid-template-columns:1fr; gap:0; }
+    body .principle-grid p { padding:1.2rem 1.5rem; font-size:.8rem; }
+    body .principle-grid p + p { border-top:1px solid #e8e8e8; }
+    body .capabilities { padding-top:3.5rem; }
+    body .section-heading > p:last-child { font-size:.85rem; }
+    body .feature-grid { grid-template-columns:1fr; gap:0; margin-top:2rem; }
+    body .feature-grid article { padding:1.5rem; }
+    body .feature-grid article + article { border-left:0; border-top:1px solid #e8e8e8; }
+    body .index { margin-bottom:1rem; }
+    body .system { grid-template-columns:1fr; padding:2.5rem 1.5rem; gap:2rem; }
+    body .flow li { padding:1rem; }
+    body .boundary { grid-template-columns:1fr; gap:0; padding:2.5rem 1.5rem; }
+    body .closing { padding:2.5rem 1.5rem; }
+    body footer { padding-block:2rem; }
+  }
+  @media(prefers-reduced-motion:reduce) { body .button, body .actions .text-link { transition:none; } }
+</style>
+<style>
+  :global(*){box-sizing:border-box} :global(html){scroll-behavior:smooth;scroll-padding-top:2rem} :global(body){margin:0;background:#f4f2e9;color:#222a25;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6} :global(a){color:inherit;text-underline-offset:.25em} :global(a:focus-visible),:global(pre:focus-visible){outline:3px solid #996323;outline-offset:5px} :global(::selection){background:#caddb6;color:#18291f} .wrap{width:min(1240px,calc(100% - 5rem));margin-inline:auto}.skip{position:absolute;left:1rem;top:-8rem;background:#222a25;color:white;padding:1rem;z-index:20}.skip:focus{top:1rem}.masthead{display:flex;align-items:center;justify-content:space-between;gap:2rem;min-height:108px;border-bottom:1px solid #c8cdc2}.brand{display:flex;align-items:center;gap:.7rem;font-weight:750;font-size:1.2rem;letter-spacing:-.04em;text-decoration:none}.mark{display:grid;place-items:center;position:relative;width:34px;height:34px;background:#284e38;color:#f4f2e9;font:700 25px Georgia,serif}.mark span{position:absolute;right:5px;top:0}.masthead nav,footer nav{display:flex;gap:1.8rem;font-size:.85rem}.masthead nav a,footer nav a{text-decoration:none}.masthead nav a:hover,footer nav a:hover{text-decoration:underline}.hero{display:grid;grid-template-columns:1.15fr 1fr;gap:4rem;align-items:center;padding-block:5rem 5.5rem}.eyebrow{font:600 .7rem/1.5 ui-monospace,SFMono-Regular,Consolas,monospace;text-transform:uppercase;letter-spacing:.12em}.status{display:inline-block;width:7px;height:7px;background:#3c694b;margin-right:.5rem;border-radius:50%}h1{font-size:clamp(3rem,4.7vw,4.8rem);line-height:1.03;letter-spacing:-.065em;font-weight:600;margin:1.6rem 0}h1 em{font-family:Georgia,'Times New Roman',serif;font-weight:400;color:#3e6044;letter-spacing:-.06em}.lede{font-size:1.25rem;line-height:1.5;max-width:31rem;margin-block:1.7rem 1rem}.intro{color:#505b50;max-width:31rem;font-size:.95rem}.actions{display:flex;align-items:center;gap:1.8rem;margin-top:2rem}.button{display:inline-flex;align-items:center;justify-content:space-between;gap:2rem;background:#284e38;color:#fff;padding:.85rem 1.3rem;text-decoration:none;font-weight:600;font-size:.9rem;border:1px solid #284e38}.button:hover{background:#173322}.text-link{font-size:.9rem;font-weight:600}.release{font: .72rem/1.8 ui-monospace,SFMono-Regular,Consolas,monospace;color:#586154;margin-top:1.4rem}.terminal{margin:2rem 0 0;background:#222d26;color:#e7ebdb;border:1px solid #283c2f;box-shadow:12px 12px 0 #dce0d2;min-width:0;transform:rotate(-1deg)}.terminal figcaption{display:flex;align-items:center;gap:.6rem;padding:1rem 1.2rem;border-bottom:1px solid #4e5a4e;font: .6rem ui-monospace,monospace;letter-spacing:.08em}.terminal figcaption>span:last-child{margin-left:auto;color:#b9c6b2}.terminal-dot{width:7px;height:7px;border:1px solid #bdcfab;border-radius:50%}.terminal-body{padding:1.6rem 1.4rem}.terminal pre{max-width:100%;overflow-x:auto;font: .75rem/1.9 ui-monospace,SFMono-Regular,Consolas,monospace;white-space:pre}.terminal .comment{color:#b9c8ac;font: .72rem/1.9 ui-monospace,monospace}.terminal-note{font: .68rem/1.7 ui-monospace,monospace;color:#b9c8ac;border-top:1px dashed #65715f;padding-top:1rem;margin-top:1.5rem}.terminal-note span{float:left;margin-right:.7rem}.terminal-footer{display:flex;justify-content:space-between;gap:1rem;padding:.8rem 1.2rem;background:#1a251e;font:.55rem/1.6 ui-monospace,monospace;letter-spacing:.03em}.principles{border-block:1px solid #c8cdc2}.principle-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:2rem}.principle-grid p{padding:.7rem 0;font-size:.85rem}.principle-grid strong,.principle-grid span{display:block}.principle-grid span{color:#586154}.capabilities{padding-block:5rem}.section-heading{max-width:43rem}h2{font-size:clamp(2rem,3.1vw,3rem);line-height:1.12;font-weight:500;letter-spacing:-.045em;margin:1.2rem 0} .section-heading>p:last-child,.system p:not(.eyebrow),.boundary p:not(.eyebrow){color:#505b50;max-width:37rem}.feature-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:3rem;margin-top:3.5rem}.feature-grid article{border-top:1px solid #899481;padding-top:1.2rem}.index{font:.7rem ui-monospace,monospace;color:#5b6d52}h3{font-weight:600;letter-spacing:-.025em;line-height:1.25;font-size:1.35rem}.feature-grid p{color:#505b50;font-size:.92rem}.feature-grid a{font-size:.8rem;font-weight:600}.system{background:#e7eadf;border:1px solid #ccd2c1;padding:3rem;display:grid;grid-template-columns:1fr 1fr;gap:5rem;align-items:center}.flow{padding:0;margin:0;list-style:none}.flow li{display:flex;gap:1.5rem;padding:1.5rem 0;border-bottom:1px solid #bac5b0}.flow li:last-child{border:0}.flow li>span{font:.7rem ui-monospace,monospace;color:#5b6d52}.flow strong{font-size:1.2rem;letter-spacing:-.02em}.flow small{display:block;color:#505b50;font-size:.8rem}.boundary{display:grid;grid-template-columns:1fr 2fr;gap:3rem;padding-block:5rem;border-bottom:1px solid #c8cdc2}.boundary h2{margin-top:0}.boundary p:not(.eyebrow){font-size:.95rem}.closing{display:flex;justify-content:space-between;align-items:center;gap:2rem;padding-block:4rem}.closing h2{font-size:2.3rem}footer{display:flex;align-items:center;justify-content:space-between;gap:2rem;border-top:1px solid #c8cdc2;padding-block:2rem}footer p{font-size:.7rem;color:#586154}footer nav{font-size:.72rem;gap:1rem}
+  @media(max-width:1000px){.hero{gap:2rem}.terminal{transform:none}.terminal-body{padding:1.2rem .9rem}.system{gap:2rem}footer{flex-wrap:wrap}.terminal-footer{flex-direction:column;gap:.3rem}}
+  @media(max-width:760px){.wrap{width:calc(100% - 2.5rem)}.masthead{min-height:85px;gap:1rem}.masthead nav{gap:1rem;font-size:.75rem}.masthead nav a:first-child{display:none}.hero{grid-template-columns:1fr;padding-block:3rem;gap:1.5rem}h1{font-size:clamp(2.8rem,9vw,4.5rem)}.desktop{display:none}.terminal{margin:0 6px 1rem 0}.terminal pre{font-size:.72rem}.terminal-footer{flex-direction:row}.principle-grid{gap:1rem}.principle-grid p{font-size:.72rem}.capabilities{padding-block:3rem}.feature-grid{grid-template-columns:1fr;gap:2rem;margin-top:2rem}.feature-grid h3 br{display:none}.system{grid-template-columns:1fr;padding:1.5rem;gap:1rem}.boundary{grid-template-columns:1fr;gap:1rem;padding-block:3rem}.closing{align-items:flex-start;flex-direction:column;padding-block:3rem}.closing h2{font-size:2rem}footer{gap:.8rem}footer nav{width:100%;flex-wrap:wrap}.actions{gap:1.2rem}.button{gap:1rem}.eyebrow{font-size:.62rem}}
+  @media(prefers-reduced-motion:reduce){:global(html){scroll-behavior:auto}}
+</style>
